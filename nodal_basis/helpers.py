@@ -336,7 +336,7 @@ def mc_multiple_local_calculation(mc_samples_multiple, mesh_resolution_fem_multi
         plt.show()
 
         u_sols_in_point_P_mean[mc_sample_size_index] = np.mean(u_sols_in_point_P)
-        u_sols_in_point_P_var[mc_sample_size_index] = np.var(u_sols_in_point_P)
+        u_sols_in_point_P_var[mc_sample_size_index] = np.var(u_sols_in_point_P, ddof=1)
         L_2_errors[mc_sample_size_index] = fe.errornorm(u_true_sol, mean_sol, norm_type='L2')
         H_1_errors[mc_sample_size_index] = fe.errornorm(u_true_sol, mean_sol, norm_type='H1')
     return u_sols_in_point_P_mean, u_sols_in_point_P_var, L_2_errors, H_1_errors, u_true_sol(P)
@@ -351,9 +351,9 @@ def double_loop_mc(mc_sample_size, mesh_resolution_fem, P, indices, jacobianV, s
     indices = [index - 1 for index in indices]
 
     # Implementation of the double loop MC estimation of specific Sobol Index
+    mean_sols_point_P = np.zeros(mc_sample_size)
     for i in range(mc_sample_size):
         print(f"First loop: Outer MC loop iteration {i+1} / {mc_sample_size}")
-        mean_sols_point_P = np.zeros(mc_sample_size)
         sols_point_P = []
         sample = np.zeros(size_of_xi + 1)
         for index in indices:
@@ -370,14 +370,14 @@ def double_loop_mc(mc_sample_size, mesh_resolution_fem, P, indices, jacobianV, s
                     sample[index] = np.random.normal(0, 1)
             sols_point_P.append(solve_poisson_for_given_sample(mesh_resolution_fem, jacobianV, sample[0:-1], sample[-1])(P))
         mean_sols_point_P[i] = np.mean(sols_point_P)
-    var_A = np.var(mean_sols_point_P)
+    var_A = np.var(mean_sols_point_P, ddof=1)
     sols_point_P = []
     for i in range(mc_sample_size):
         print(f"Second loop: {i+1} / {mc_sample_size}")
         xi = np.random.uniform(-np.sqrt(3), np.sqrt(3), size_of_xi)
         f = np.random.normal(0, 1)
         sols_point_P.append(solve_poisson_for_given_sample(mesh_resolution_fem, jacobianV, xi, f)(P))
-    var = np.var(sols_point_P)
+    var = np.var(sols_point_P, ddof=1)
     return var_A / var
 
 
@@ -422,7 +422,7 @@ def pick_freeze(mc_sample_size, mesh_resolution_fem, P, indices, jacobianV, size
         xi = np.random.uniform(-np.sqrt(3), np.sqrt(3), size_of_xi)
         f = np.random.normal(0, 1)
         sols_point_P.append(solve_poisson_for_given_sample(mesh_resolution_fem, jacobianV, xi, f)(P))
-    var = np.var(sols_point_P)
+    var = np.var(sols_point_P, ddof=1)
     return var_A / var
 
 def rank(i, sorted_samples, samples):
