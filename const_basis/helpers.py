@@ -4,6 +4,8 @@ import mshr
 import numpy as np
 from scipy.linalg import eig
 import sympy as sp
+from scipy.interpolate import griddata
+import plotly.graph_objects as go
 
 
 
@@ -14,7 +16,6 @@ DOMAIN = mshr.Circle(CENTER, RADIUS)
 RHS_F = fe.Constant(1)
 DIRICHLET_BC = fe.Constant(0)
 
-MESH_RESOLUTION_RANDOM_FIELD_CALCULATION = 4
 
 # Define symbolic variables
 x1, x2, y1, y2 = sp.symbols('x1 x2 y1 y2')
@@ -89,6 +90,7 @@ class ConstBasisFunction():
     def __init__(self, basis_function: fe.Function, vertex_coords: np.array):
         self.function = basis_function
         self.vertex_coords = vertex_coords
+        self.triangle_area = triangle_area(vertex_coords)
 
 class RandomFieldV():
     def __init__(self, eigenvalues, eigenvectors, basis_functions, N, J):
@@ -99,8 +101,15 @@ class RandomFieldV():
         self.J = J
 
     def __call__(self, x, xi):
-        return x[0] + sum([np.sqrt(self.eigenvalues[j]) * sum([self.eigenvectors[k, j] * self.basis_functions[k].function(x) for k in range(self.N)]) * xi[j] for j in range(len(xi))]), \
-           x[1] + sum([np.sqrt(self.eigenvalues[j]) * sum([self.eigenvectors[self.N + k, j] * self.basis_functions[k].function(x) for k in range(self.N)]) * xi[j] for j in range(len(xi))])
+        index_supported_basis_function = self.find_supported_basis_function(x)
+        return x[0] + sum([np.sqrt(self.eigenvalues[j]) * self.eigenvectors[index_supported_basis_function, j] * xi[j] for j in range(len(xi))]), \
+           x[1] + sum([np.sqrt(self.eigenvalues[j]) * self.eigenvectors[self.N + index_supported_basis_function, j] * xi[j] for j in range(len(xi))])
+    
+    def find_supported_basis_function(self, x):
+        for i, basis_function in enumerate(self.basis_functions):
+            if basis_function.function(x) == 1:
+                return i
+        raise ValueError("No supported basis function found for x")
 
 class DerivativeCovarianceExpression(fe.UserExpression):
     def __init__(self, f, x, **kwargs):
@@ -117,114 +126,95 @@ class DerivativeCovarianceExpression(fe.UserExpression):
 def quad_tri(f, basis_function: ConstBasisFunction):
     transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
     active_quad_points = QUAD_POINTS_2DD_6
-    area_triangle = triangle_area(basis_function.vertex_coords)
-    quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * area_triangle) for orig_quad_point in active_quad_points]
+    quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * basis_function.triangle_area) for orig_quad_point in active_quad_points]
     integral = 0
     for quad_point in quad_points:
         integral += f(quad_point.point[0], quad_point.point[1]) * basis_function.function(quad_point.point) * quad_point.weight
     return integral
 
-class TESTJacobianV():
-    def __init__(self, eigenvalues, eigenvectors, basis_functions, N: int, J: int):
+def jacob_get_c_entry(f, basis_function_l, basis_function_k):
+    transformation_matrix_x, transformation_vector_x = find_affine_transformation(basis_function_l.vertex_coords)
+    transformation_matrix_y, transformation_vector_y = find_affine_transformation(basis_function_k.vertex_coords)
+
+    active_quad_points = QUAD_POINTS_2DD_6
+
+    #! triangle areas not needed it cancels out, weight just times 2
+    quad_points_x = [Quad_point(np.dot(transformation_matrix_x, quad_point_x.point) + transformation_vector_x, quad_point_x.weight * 2) for quad_point_x in active_quad_points]
+    quad_points_y = [Quad_point(np.dot(transformation_matrix_y, quad_point_y.point) + transformation_vector_y, quad_point_y.weight * 2) for quad_point_y in active_quad_points]
+    integral = 0
+     
+    for quad_point_x in quad_points_x:
+        for quad_point_y in quad_points_y:
+            integral += f(quad_point_x.point[0], quad_point_x.point[1], quad_point_y.point[0], quad_point_y.point[1]) * quad_point_x.weight * quad_point_y.weight
+    return integral
+
+def jacob_get_C_matrices(basis_functions):
+    N = len(basis_functions)
+    C = []
+    for k, basis_function_k in enumerate(basis_functions):
+        C_k = np.zeros((4*len(basis_functions), 2))
+        for l, basis_function_l in enumerate(basis_functions):
+            C_k[l, 0] = jacob_get_c_entry(v_cov1_1_dx1, basis_function_l, basis_function_k)
+            C_k[l, 1] = jacob_get_c_entry(v_cov1_1_dx2, basis_function_l, basis_function_k)
+            C_k[l + N, 0] = jacob_get_c_entry(v_cov1_2_dx1, basis_function_l, basis_function_k)
+            C_k[l + N, 1] = jacob_get_c_entry(v_cov1_2_dx2, basis_function_l, basis_function_k)
+            C_k[l + 2 * N, 0] = jacob_get_c_entry(v_cov2_1_dx1, basis_function_l, basis_function_k)
+            C_k[l + 2 * N, 1] = jacob_get_c_entry(v_cov2_1_dx2, basis_function_l, basis_function_k)
+            C_k[l + 3 * N, 0] = jacob_get_c_entry(v_cov2_2_dx1, basis_function_l, basis_function_k)
+            C_k[l + 3 * N, 1] = jacob_get_c_entry(v_cov2_2_dx2, basis_function_l, basis_function_k)
+        C.append(C_k)
+    return C
+
+
+class JacobianV():
+    def __init__(self, eigenvalues, eigenvectors, basis_functions: list[ConstBasisFunction], N: int, J: int):
         self.eigenvalues = eigenvalues
         self.eigenvectors = eigenvectors
         self.basis_functions = basis_functions
         self.N = N
         self.J = J
+        self.C = jacob_get_C_matrices(self.basis_functions)
     # Alternatively implement own call function here but can create object with same inputs and then use the call function below as well
 
-class TESTJacobianVFixedXi(TESTJacobianV):
-    def __init__(self, eigenvalues, eigenvectors, basis_functions, N: int, J: int, xi):
-        super().__init__(eigenvalues, eigenvectors, basis_functions, N, J)
+class JacobianVFixedXi():
+    def __init__(self, jacobianV: JacobianV, xi: np.array):
+        #! Klassenvererbung erwägen
         self.xi = xi
+        self.eigenvalues = jacobianV.eigenvalues
+        self.eigenvectors = jacobianV.eigenvectors
+        self.basis_functions = jacobianV.basis_functions
+        self.N = jacobianV.N
+        self.J = jacobianV.J
         
         a_bar_T = sum([1/np.sqrt(self.eigenvalues[m]) * self.eigenvectors[:, m] * xi[m] for m in range(len(xi))]).T
+        for j in range(self.N):
+            a_bar_T[j] *= self.basis_functions[j].triangle_area
+            a_bar_T[self.N + j] *= self.basis_functions[j].triangle_area
         zero_matrix = np.zeros(a_bar_T.shape)
         self.A = np.block([[a_bar_T, zero_matrix],
               [zero_matrix, a_bar_T]])
-
+        
+        self.C = jacobianV.C
+        self.const_jacobians = [np.eye(2) + self.A @ self.C[k] for k in range(self.N)]
+    
+    def find_supported_basis_function(self, x):
+        for i, basis_function in enumerate(self.basis_functions):
+            if basis_function.function(x) == 1:
+                return i
+        raise ValueError("No supported basis function found for x")
+    
     def __call__(self, x):
-        
-        C_111 = np.zeros(self.N)
-        C_112 = np.zeros(self.N)
-        C_121 = np.zeros(self.N)
-        C_122 = np.zeros(self.N)
-        C_211 = np.zeros(self.N)
-        C_212 = np.zeros(self.N)
-        C_221 = np.zeros(self.N)
-        C_222 = np.zeros(self.N)
-
-        v_cov1_1_dx1_expr = DerivativeCovarianceExpression(v_cov1_1_dx1, x, degree = 2)
-        v_cov1_1_dx2_expr = DerivativeCovarianceExpression(v_cov1_1_dx2, x, degree = 2)
-        v_cov1_2_dx1_expr = DerivativeCovarianceExpression(v_cov1_2_dx1, x, degree = 2)
-        v_cov1_2_dx2_expr = DerivativeCovarianceExpression(v_cov1_2_dx2, x, degree = 2)
-        v_cov2_1_dx1_expr = DerivativeCovarianceExpression(v_cov2_1_dx1, x, degree = 2)
-        v_cov2_1_dx2_expr = DerivativeCovarianceExpression(v_cov2_1_dx2, x, degree = 2)
-        v_cov2_2_dx1_expr = DerivativeCovarianceExpression(v_cov2_2_dx1, x, degree = 2)
-        v_cov2_2_dx2_expr = DerivativeCovarianceExpression(v_cov2_2_dx2, x, degree = 2)
-
-        for j, basis_function in enumerate(self.basis_functions):
-            transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
-            active_quad_points = QUAD_POINTS_2DD_6
-            area_triangle = triangle_area(basis_function.vertex_coords)
-            quad_points_j = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * area_triangle) for orig_quad_point in active_quad_points]
-            for i, quad_point_j in enumerate(quad_points_j):
-                C_111[j] += v_cov1_1_dx1_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_112[j] += v_cov1_1_dx2_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_121[j] += v_cov1_2_dx1_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_122[j] += v_cov1_2_dx2_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_211[j] += v_cov2_1_dx1_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_212[j] += v_cov2_1_dx2_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_221[j] += v_cov2_2_dx1_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-                C_222[j] += v_cov2_2_dx2_expr(quad_point_j.point[0], quad_point_j.point[1]) * quad_point_j.weight
-        
-        C = np.block([[C_111, C_112],
-                      [C_121, C_122],
-                      [C_211, C_212],
-                      [C_221, C_222]])
-
-        return np.eye(2) + self.A @ C
-
-class JacobianV():
-    def __init__(self, eigenvalues, eigenvectors, basis_functions, N: int, J: int):
-        self.eigenvalues = eigenvalues
-        self.eigenvectors = eigenvectors
-        self.basis_functions = basis_functions
-        self.N = N
-        self.J = J
-
-    def __call__(self, x, xi):
-        eigenfunction_jacobians = []
-        v_cov1_1_dx1_expr = DerivativeCovarianceExpression(v_cov1_1_dx1, x, degree = 2)
-        v_cov1_1_dx2_expr = DerivativeCovarianceExpression(v_cov1_1_dx2, x, degree = 2)
-        v_cov1_2_dx1_expr = DerivativeCovarianceExpression(v_cov1_2_dx1, x, degree = 2)
-        v_cov1_2_dx2_expr = DerivativeCovarianceExpression(v_cov1_2_dx2, x, degree = 2)
-        v_cov2_1_dx1_expr = DerivativeCovarianceExpression(v_cov2_1_dx1, x, degree = 2)
-        v_cov2_1_dx2_expr = DerivativeCovarianceExpression(v_cov2_1_dx2, x, degree = 2)
-        v_cov2_2_dx1_expr = DerivativeCovarianceExpression(v_cov2_2_dx1, x, degree = 2)
-        v_cov2_2_dx2_expr = DerivativeCovarianceExpression(v_cov2_2_dx2, x, degree = 2)
-
-        for j in range(len(xi)):
-            helper = np.zeros((2, 2))
-            helper[0, 0] = sum([self.eigenvectors[k, j] * quad_tri(v_cov1_1_dx1_expr, self.basis_functions[k]) for k in range(self.N)]) + sum([self.eigenvectors[self.N + k, j] * quad_tri(v_cov1_2_dx1_expr, self.basis_functions[k]) for k in range(self.N)])
-            helper[0, 1] = sum([self.eigenvectors[k, j] * quad_tri(v_cov1_1_dx2_expr, self.basis_functions[k]) for k in range(self.N)]) + sum([self.eigenvectors[self.N + k, j] * quad_tri(v_cov1_2_dx2_expr, self.basis_functions[k]) for k in range(self.N)])
-            helper[1, 0] = sum([self.eigenvectors[k, j] * quad_tri(v_cov2_1_dx1_expr, self.basis_functions[k]) for k in range(self.N)]) + sum([self.eigenvectors[self.N + k, j] * quad_tri(v_cov2_2_dx1_expr, self.basis_functions[k]) for k in range(self.N)])
-            helper[1, 1] = sum([self.eigenvectors[k, j] * quad_tri(v_cov2_1_dx2_expr, self.basis_functions[k]) for k in range(self.N)]) + sum([self.eigenvectors[self.N + k, j] * quad_tri(v_cov2_2_dx2_expr, self.basis_functions[k]) for k in range(self.N)])
-            eigenfunction_jacobians.append(helper)        
-        # np.sqrt(self.eigenvalues[j]) / self.eigenvalues[j]
-        jacobian_output = np.eye(2) + sum([1 / np.sqrt(self.eigenvalues[j]) * eigenfunction_jacobians[j] * xi[j] for j in range(len(xi))])
-
-        return jacobian_output
+        k_hat = self.find_supported_basis_function(x)
+        return self.const_jacobians[k_hat]
     
 
 class AExpression(fe.UserExpression):
-    def __init__(self, jacobianV, xi, **kwargs):
+    def __init__(self, jacobianV_fixed_xi, **kwargs):
         super().__init__(**kwargs)
-        self.jacobianV = jacobianV
-        self.xi = xi
+        self.jacobianV_fixed_xi = jacobianV_fixed_xi
 
     def eval(self, values, x):
-        J_x = self.jacobianV(x, self.xi)
+        J_x = self.jacobianV_fixed_xi(x)
         inv_JTJ = np.linalg.inv(J_x.T @ J_x)
         det_J = np.linalg.det(J_x)
         A_x = inv_JTJ * det_J
@@ -237,13 +227,12 @@ class AExpression(fe.UserExpression):
         return (2, 2)
 
 class detJExpression(fe.UserExpression):
-    def __init__(self, jacobianV, xi, **kwargs):
+    def __init__(self, jacobianV_fixed_xi, **kwargs):
         super().__init__(**kwargs)
-        self.jacobianV = jacobianV
-        self.xi = xi
+        self.jacobianV_fixed_xi = jacobianV_fixed_xi
 
     def eval(self, values, x):
-        J_x = self.jacobianV(x, self.xi)
+        J_x = self.jacobianV_fixed_xi(x)
         det_J = np.linalg.det(J_x)
         values[0] = det_J
 
@@ -269,10 +258,8 @@ def get_C_entry(f, basis_function_i: ConstBasisFunction, basis_function_j: Const
 
     active_quad_points = QUAD_POINTS_2DD_6
 
-    area_x = triangle_area(basis_function_i.vertex_coords)
-    area_y = triangle_area(basis_function_j.vertex_coords)
-    quad_points_x = [Quad_point(np.dot(transformation_matrix_x, quad_point_x.point) + transformation_vector_x, quad_point_x.weight * 2 * area_x) for quad_point_x in active_quad_points]
-    quad_points_y = [Quad_point(np.dot(transformation_matrix_y, quad_point_y.point) + transformation_vector_y, quad_point_y.weight * 2 * area_y) for quad_point_y in active_quad_points]
+    quad_points_x = [Quad_point(np.dot(transformation_matrix_x, quad_point_x.point) + transformation_vector_x, quad_point_x.weight * 2 * basis_function_i.triangle_area) for quad_point_x in active_quad_points]
+    quad_points_y = [Quad_point(np.dot(transformation_matrix_y, quad_point_y.point) + transformation_vector_y, quad_point_y.weight * 2 * basis_function_j.triangle_area) for quad_point_y in active_quad_points]
     integral = 0
      
     for quad_point_x in quad_points_x:
@@ -330,13 +317,14 @@ def calculate_vector_field_eigenpairs(mesh_resolution):
 
 
 def solve_poisson_for_given_sample(mesh_resolution, jacobianV, xi, f):
+    jacobianV_fixed_xi = JacobianVFixedXi(jacobianV, xi)
     mesh = mshr.generate_mesh(DOMAIN, mesh_resolution)
     V = fe.FunctionSpace(mesh, "CG", 3)
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
-    A_expr = AExpression(jacobianV, xi, degree=2)
+    A_expr = AExpression(jacobianV_fixed_xi, degree=2)
     a = fe.inner(fe.dot(A_expr, fe.grad(u)), fe.grad(v)) * fe.dx
-    det_J_expr = detJExpression(jacobianV, xi, degree=2)
+    det_J_expr = detJExpression(jacobianV_fixed_xi, degree=2)
     L = f * det_J_expr * v * fe.dx
     bc = fe.DirichletBC(V, DIRICHLET_BC, 'on_boundary')
     u_sol = fe.Function(V)
@@ -393,12 +381,19 @@ def inverse_mapping(P, randomFieldV, xi, mesh_resolution_inverse_mapping):
 
     return P_hat
 
-def non_varying_area(len_xi, randomFieldV):   
-    R_nv = np.sqrt(3) * np.sqrt((np.sum([np.sqrt(randomFieldV.eigenvalues[m]) * 3 * np.max([np.abs(randomFieldV.eigenvectors[j, m]) for j in range(randomFieldV.N)]) for m in range(len_xi)]))**2 \
-                                + (np.sum([np.sqrt(randomFieldV.eigenvalues[m]) * 3 * np.max([np.abs(randomFieldV.eigenvectors[randomFieldV.N + j, m]) for j in range(randomFieldV.N)]) for m in range(len_xi)]))**2)
+def non_varying_area(len_xi, randomFieldV: RandomFieldV):
+    # Only valid for piecewise constant basis functions
+    R_nv = np.sqrt(3) * np.sqrt((np.sum([np.sqrt(randomFieldV.eigenvalues[m]) * np.max([np.abs(randomFieldV.eigenvectors[j, m]) for j in range(randomFieldV.N)]) for m in range(len_xi)]))**2 \
+                                + (np.sum([np.sqrt(randomFieldV.eigenvalues[m]) * np.max([np.abs(randomFieldV.eigenvectors[randomFieldV.N + j, m]) for j in range(randomFieldV.N)]) for m in range(len_xi)]))**2)
     print(f"R_nv (maximal perturbation distance): {R_nv}") # maximal perturbation distance
 
     # Non-Varying Area
     if R_nv >= 1:
             raise ValueError(f"for len(xi): {len_xi} the non-varying area is the empty set")
     return mshr.Circle(CENTER, 1 - R_nv)
+
+
+def pointInNVA(P, NVA):
+    if NVA.radius() < P.distance(CENTER):
+        return False
+    return True

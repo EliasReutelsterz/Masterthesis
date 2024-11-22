@@ -1,7 +1,7 @@
 from helpers import *
 
 class RandomFieldZ():
-    def __init__(self, eigenvalues, eigenvectors, basis_functions, N, J):
+    def __init__(self, eigenvalues: np.array, eigenvectors: np.array, basis_functions: list[ConstBasisFunction], N: int, J: int):
         self.eigenvalues = eigenvalues
         self.eigenvectors = eigenvectors
         self.basis_functions = basis_functions
@@ -9,8 +9,17 @@ class RandomFieldZ():
         self.J = J
 
     def __call__(self, x, xi):
-        return sum([np.sqrt(self.eigenvalues[j]) * sum([self.eigenvectors[k, j] * self.basis_functions[k].function(x) for k in range(self.N)]) * xi[j] for j in range(len(xi))])
+        index_supported_basis_function = self.find_supported_basis_function(x)
+        if index_supported_basis_function is None:
+            return 0
+        return sum([np.sqrt(self.eigenvalues[j]) * self.eigenvectors[index_supported_basis_function, j] * xi[j] for j in range(len(xi))])
     
+    def find_supported_basis_function(self, x):
+        for i, basis_function in enumerate(self.basis_functions):
+            if basis_function.function(x) == 1:
+                return i
+        return None
+
 
 def z_calculate_random_field_eigenpairs(mesh_resolution, z_cov):  
     mesh = mshr.generate_mesh(DOMAIN, mesh_resolution)
@@ -25,8 +34,7 @@ def z_calculate_random_field_eigenpairs(mesh_resolution, z_cov):
 
         cell_index = V.dofmap().cell_dofs(i)[0]
         cell = fe.Cell(mesh, cell_index)
-        vertex_coords = np.array([mesh.coordinates()[vertex] for vertex in cell.entities(0)])
-
+        vertex_coords = np.array([np.array(mesh.coordinates()[vertex]) for vertex in cell.entities(0)])
         basis_functions.append(ConstBasisFunction(basis_function, vertex_coords))
     
     C = np.zeros((N, N))
@@ -37,11 +45,9 @@ def z_calculate_random_field_eigenpairs(mesh_resolution, z_cov):
                 C[i, j] = C[j, i] = get_C_entry(z_cov, basis_function_i, basis_function_j)
     
     M = np.zeros((N, N))
-    for i, basis_function_i in enumerate(basis_functions):
-        for j, basis_function_j in enumerate(basis_functions):
-            if i >= j:
-                integrand = basis_function_j.function * basis_function_i.function * fe.dx
-                M[i, j] = M[j, i] = fe.assemble(integrand)
+    for i, basis_function in enumerate(basis_functions):
+        integrand = basis_function_i.function * basis_function_i.function * fe.dx
+        M[i, i] = fe.assemble(integrand)
         
     J = N # Number of eigenvectors -> J = N is maximum
     eigenvalues, eigenvectors = eig(C, M)
@@ -65,20 +71,19 @@ def a_hat_random_field(x, randomFieldV: RandomFieldV, randomFieldZ: RandomFieldZ
     x_hat = randomFieldV(x, xi_v)
     z = randomFieldZ(x_hat, xi_z)
     a = np.exp(z)
-    # print(f"x: {x}, x_hat: {x_hat}, z: {z}, a: {a}")
     return a
 
 class BExpression(fe.UserExpression):
-    def __init__(self, randomFieldV, jacobianV, randomFieldZ, xi_v, xi_z, **kwargs):
+    def __init__(self, randomFieldV, jacobianV_fixed_xi, randomFieldZ, xi_v, xi_z, **kwargs):
         super().__init__(**kwargs)
         self.randomFieldV = randomFieldV
-        self.jacobianV = jacobianV
+        self.jacobianV_fixed_xi = jacobianV_fixed_xi
         self.randomFieldZ = randomFieldZ
         self.xi_v = xi_v
         self.xi_z = xi_z
 
     def eval(self, values, x):
-        J_x = self.jacobianV(x, self.xi_v)
+        J_x = self.jacobianV_fixed_xi(x)
         inv_JTJ = np.linalg.inv(J_x.T @ J_x)
         det_J = np.linalg.det(J_x)
         a_hat = a_hat_random_field(x, self.randomFieldV, self.randomFieldZ, self.xi_v, self.xi_z)
@@ -96,9 +101,10 @@ def solve_diffusion_poisson_for_given_sample(mesh_resolution, f, randomFieldV, j
     V = fe.FunctionSpace(mesh, "CG", 3)
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
-    B_expr = BExpression(randomFieldV, jacobianV, randomFieldZ, xi_v, xi_z, degree=2)
+    jacobianV_fixed_xi = JacobianVFixedXi(jacobianV, xi_v)
+    B_expr = BExpression(randomFieldV, jacobianV_fixed_xi, randomFieldZ, xi_v, xi_z, degree=2)
     a = fe.inner(fe.dot(B_expr, fe.grad(u)), fe.grad(v)) * fe.dx
-    det_J_expr = detJExpression(jacobianV, xi_v, degree=2)
+    det_J_expr = detJExpression(jacobianV_fixed_xi, degree=2)
     L = f * det_J_expr * v * fe.dx
     bc = fe.DirichletBC(V, DIRICHLET_BC, 'on_boundary')
     u_sol = fe.Function(V)

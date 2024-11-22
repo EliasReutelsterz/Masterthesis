@@ -8,6 +8,24 @@ def test_f(x):
 # Helpers Sensitivity Analysis
 
 class RandomRHS(fe.UserExpression):
+    def __init__(self, F1, F2, **kwargs):
+        super().__init__(**kwargs)
+        self.F1 = F1
+        self.F2 = F2
+    
+    def eval(self, values, x):
+        if np.linalg.norm(x) < 1:
+            if x[0] <= 0:
+                values[0] = self.F1
+            else:
+                values[0] = self.F2
+        else:
+            values[0] = 0
+    
+    def value_shape(self):
+        return ()
+
+class RandomRHSSecondAlternative(fe.UserExpression):
     # of the form F_1 \cdot \sin(\lVert x \rVert_2) + F_2 \cdot \cos(\lVert x \rVert_2)
     def __init__(self, F1, F2, **kwargs):
         super().__init__(**kwargs)
@@ -26,9 +44,10 @@ def solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, xi, F_
     V = fe.FunctionSpace(mesh, "CG", 3)
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
-    A_expr = AExpression(jacobianV, xi, degree=2)
+    jacobianV_fixed_xi = JacobianVFixedXi(jacobianV, xi)
+    A_expr = AExpression(jacobianV_fixed_xi, degree=2)
     a = fe.inner(fe.dot(A_expr, fe.grad(u)), fe.grad(v)) * fe.dx
-    det_J_expr = detJExpression(jacobianV, xi, degree=2)
+    det_J_expr = detJExpression(jacobianV_fixed_xi, degree=2)
     L = f_expr * det_J_expr * v * fe.dx
     bc = fe.DirichletBC(V, DIRICHLET_BC, 'on_boundary')
     u_sol = fe.Function(V)
