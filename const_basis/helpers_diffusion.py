@@ -327,8 +327,8 @@ def diffusion_sobol_run_samples_and_save(mc_sample_size: int, fem_res: int, kl_r
         B[:, xi_v_index] = np.random.uniform(-np.sqrt(3), np.sqrt(3), mc_sample_size)
 
     for xi_z_index in range(randomFieldZ.J):
-        A[:, randomFieldV.J + xi_z_index] = np.random.random(size=mc_sample_size)
-        B[:, randomFieldV.J + xi_z_index] = np.random.random(size=mc_sample_size)
+        A[:, randomFieldV.J + xi_z_index] = np.random.normal(0, 1, size=mc_sample_size)
+        B[:, randomFieldV.J + xi_z_index] = np.random.normal(0, 1, size=mc_sample_size)
 
     f_A = np.zeros((mc_sample_size, N))
     f_B = np.zeros((mc_sample_size, N))

@@ -243,7 +243,7 @@ class detJExpression(fe.UserExpression):
         return ()
 
 class RandomFieldExpression(fe.UserExpression):
-    def __init__(self, randomfieldV, xi, **kwargs):
+    def __init__(self, randomfieldV: RandomFieldV, xi: np.array, **kwargs):
         super().__init__(**kwargs)
         self.randomfieldV = randomfieldV
         self.xi = xi
