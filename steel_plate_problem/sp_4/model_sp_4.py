@@ -11,7 +11,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 # Design parameters
-mesh_resolution = 32
+mesh_resolution = 16
 
 # Model parameters
 a_plate_length = 0.32
@@ -123,13 +123,19 @@ right_prefactor = fe.Expression('E / (2 * (1 - nu))', degree=1, E=E, nu=nu, doma
 
 randomFieldVExpression = RandomFieldVExpression(omega=omega, r=r, domain=mesh)
 
-randomFieldProj = fe.project(randomFieldVExpression, V, mesh=mesh)
-W = fe.TensorFunctionSpace(mesh, 'P', deg)
-def square_boundary(x, on_boundary):
-    return on_boundary and (fe.near(x[0], 0) or fe.near(x[0], 0.32) or fe.near(x[1], 0) or fe.near(x[1], 0.32))
 
-bc_jacobian_projection = fe.DirichletBC(W, fe.Constant(((1, 0), (0, 1))), square_boundary) 
-jacobianProj = fe.project(fe.grad(randomFieldProj), W, bcs=bc_jacobian_projection)
+fine_mesh_resolution = 50
+fine_mesh = mshr.generate_mesh(domain, fine_mesh_resolution)
+fine_V = fe.VectorFunctionSpace(fine_mesh, 'P', deg)
+fine_randomFieldVProj = fe.project(randomFieldVExpression, fine_V, mesh=fine_mesh)
+randomFieldVProj = fe.project(randomFieldVExpression, V)
+
+fine_W = fe.TensorFunctionSpace(fine_mesh, 'P', deg)
+W = fe.TensorFunctionSpace(mesh, 'P', deg)
+
+fine_jacobianProj = fe.project(fe.grad(fine_randomFieldVProj), fine_W)
+fine_jacobianProj.set_allow_extrapolation(True)
+jacobianProj = fe.project(fine_jacobianProj, W)
 
 J_inv_T = J_minus_TExpression(jacobianProj, domain=mesh)
 J_helper1 = J_helper1Expression(jacobianProj, domain=mesh)
@@ -137,13 +143,6 @@ J_helper2 = J_helper2Expression(jacobianProj, domain=mesh)
 det_J = J_determinantExpression(jacobianProj, domain=mesh)
 inv_det_J = J_inv_determinantExpression(jacobianProj, domain=mesh)
 
-
-#! just for now
-V_scalar = fe.FunctionSpace(mesh, 'P', deg)
-c = fe.plot(fe.project(det_J, V_scalar))
-plt.colorbar(c)
-plt.show()
-#! just for now
 
 left_integrand = left_prefactor * det_J * fe.inner(fe.dot(J_inv_T, fe.grad(u)), fe.dot(J_inv_T, fe.grad(v)))
 
@@ -154,7 +153,7 @@ right_integrand = right_prefactor * inv_det_J * \
 
 a = (left_integrand + right_integrand) * fe.dx
 # Right-hand side of weak form
-L = fe.inner(b,v) * det_J * fe.dx + det_J * fe.dot(g,v) * ds(3)
+L = det_J * fe.inner(b,v) * fe.dx + det_J * fe.dot(g,v) * ds(3)
 
 # Solve Galerkin system
 fe.solve(a==L, u_hat_sol, bc_left)
@@ -178,11 +177,18 @@ plt.legend(loc='upper right')
 plt.xlim(bottom_left_corner[0] - 0.02, top_right_corner[0] + 0.02)
 plt.ylim(bottom_left_corner[1] - 0.02, top_right_corner[1] + 0.02)
 
+# Mark inner circle boundary points for perturbed mesh
+perturbed_inner_circle_boundary_points = []
+for point in inner_circle_boundary_points:
+    perturbed_inner_circle_boundary_points.append(perturbation_function(x=point, omega=omega, r=r))
+perturbed_inner_circle_boundary_points = np.array(perturbed_inner_circle_boundary_points)
+
 # Plot perturbed mesh
 plt.subplot(2, 3, 4)
 fe.plot(perturbed_mesh, title='Perturbed Mesh')
 plt.scatter(left_boundary_points[:, 0], left_boundary_points[:, 1], color='blue', s=10, label='Left Boundary Points')
 plt.scatter(right_boundary_points[:, 0], right_boundary_points[:, 1], color='green', s=10, label='Right Boundary Points')
+plt.scatter(perturbed_inner_circle_boundary_points[:, 0], perturbed_inner_circle_boundary_points[:, 1], color='cyan', s=10, label='Circle Boundary Points')
 plt.title('Perturbed Mesh')
 plt.xlabel(r'$x_1$')
 plt.ylabel(r'$x_2$')
@@ -214,12 +220,13 @@ plt.xlim(bottom_left_corner[0] - 0.02, top_right_corner[0] + 0.02)
 plt.ylim(bottom_left_corner[1] - 0.02, top_right_corner[1] + 0.02)
 
 # Plot Sigma(û)
-def sigma(u):
-    return left_prefactor*fe.grad(u) + right_prefactor*fe.div(u)*fe.Identity(2)
-# def sigma(u): # Stress tensor
-#     return left_prefactor * fe.dot(J_inv_T, fe.grad(u)) + right_prefactor * inv_det_J * (fe.dot(J_helper1, fe.grad(u)[:, 0]) + fe.dot(J_helper2, fe.grad(u)[:, 1])) * fe.Identity(2)
+def sigma(u): # Stress tensor
+    return det_J * left_prefactor * fe.dot(J_inv_T, fe.grad(u)) + right_prefactor * (fe.dot(J_helper1, fe.grad(u)[:, 0]) + fe.dot(J_helper2, fe.grad(u)[:, 1])) * fe.Identity(2)
 
-sigma_proj = fe.project(sigma(u_hat_sol)[:, 0], V)
+def sigma_div_det_J(u):
+    return sigma(u) / det_J
+
+sigma_proj = fe.project(sigma_div_det_J(u_hat_sol)[:, 0], V)
 plt.subplot(2, 3, 3)
 c = fe.plot(sigma_proj, title=r'$\sigma(\hat{u}) \cdot e_1$')
 plt.colorbar(c)
