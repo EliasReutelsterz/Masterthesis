@@ -18,7 +18,7 @@ a = 0.32
 r = 0.02
 nu = 0.29
 rho = 7850
-grav = 6.6743*1E-11
+grav = 9.80665
 b = fe.Constant((0, -rho * grav))
 q = 60*1E6
 

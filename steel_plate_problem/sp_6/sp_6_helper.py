@@ -435,7 +435,7 @@ def solve_model(mesh_resolution: int, omega_1: np.array, omega_2: np.array, q: f
     r = 0.02
     nu = 0.29
     rho = 7850
-    grav = 6.6743*1E-11
+    grav = 9.80665
     b = fe.Constant((0, -rho * grav))
 
     # Mesh

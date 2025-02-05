@@ -16,7 +16,7 @@ a = 0.32
 r = 0.02
 nu = 0.29
 rho = 7850
-grav = 6.6743*1E-11
+grav = 9.80665
 b = fe.Constant((0, -rho * grav))
 def E_func(x):
     return 2*1E11 + np.sqrt((x[0] - a/2)**2 + (x[1] - a/2)**2) * 1E11

@@ -451,7 +451,7 @@ def poisson_rhs_random_analyse_two_resolutions_from_data_u_hat(resolution_sparse
 
     ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
     ax1.set_xscale('log')
-    #ax1.set_yscale('log')
+    # ax1.set_yscale('log')
     ax1.set_xlabel('MC Samples')
     ax1.set_ylabel('L2 Error')
     ax1.legend(loc='upper left')
@@ -459,7 +459,7 @@ def poisson_rhs_random_analyse_two_resolutions_from_data_u_hat(resolution_sparse
 
     ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
     ax2.set_xscale('log')
-    #ax2.set_yscale('log')
+    # ax2.set_yscale('log')
     ax2.set_xlabel('MC Samples')
     ax2.set_ylabel('H1 Error')
     ax2.legend(loc='upper left')
