@@ -172,6 +172,8 @@ def diffusion_analyse_two_resolutions_from_data_u_hat(resolution_sparse, resolut
             break
     # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
 
+    print(f"Sample size fine solution: {data_fine.shape[0]}")
+    print(f"Samples sizes sparse solution: {mc_sample_sizes}")
 
     mean_sol_fine = fe.Function(V_sparse)
     mean_sol_fine.set_allow_extrapolation(True)
@@ -231,77 +233,103 @@ def diffusion_analyse_two_resolutions_from_data_u_hat(resolution_sparse, resolut
         z_values_fine_mean.append(mean_sol_fine(x_coords[i], y_coords[i]))
         z_values_fine_var.append(var_sol_fine(x_coords[i], y_coords[i]))
 
-    grid_z = griddata((x_coords, y_coords), z_values_fine_mean, (grid_x, grid_y), method='linear')
-    fig_mean = go.Figure(data=[go.Surface(z=grid_z, x=grid_x, y=grid_y, colorscale='Viridis')])
-    fig_mean.update_layout(title=dict(text="Mean estimation û(x,y) diffusion problem", x=0.5, y=0.95),
-                    autosize=True,
-                    # height=400,
-                    margin=dict(l=10, r=10, b=10, t=20),
-                    scene=dict(
-                        xaxis_title='x-axis',
-                        yaxis_title='y-axis',
-                        zaxis_title='û(x, y)'))
-    fig_mean.show()
-
-    grid_z = griddata((x_coords, y_coords), z_values_fine_var, (grid_x, grid_y), method='linear')
-    fig_var = go.Figure(data=[go.Surface(z=grid_z, x=grid_x, y=grid_y, colorscale='Viridis', colorbar=dict(exponentformat='e'))])
-    fig_var.update_layout(title=dict(text="Variance estimation û(x,y) diffusion problem", x=0.5, y=0.95),
-                      autosize=True,
-                    # height=400,
-                    margin=dict(l=10, r=10, b=10, t=20),
-                    scene=dict(
-                        xaxis=dict(title='x-axis', exponentformat='e'),
-                        yaxis=dict(title='y-axis', exponentformat='e'),
-                        zaxis=dict(title='z-axis', exponentformat='e')))
-    fig_var.show()
-
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    # Plot means
-    ax1.plot(mc_sample_sizes, u_sols_sparse_P_hat_means, 'bo', marker='x', linestyle='None', label='Means')
-    ax1.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
-    ax1.axhline(y=mean_sol_fine(P_hat), color='r', linestyle='-', label='Mean reference solution')
-    ax1.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
-    ax1.set_xscale('log')
-    ax1.set_xlabel('MC Samples')
-    ax1.set_ylabel('Means')
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-
-    # Plot variance
-    ax2.plot(mc_sample_sizes, u_sols_sparse_P_hat_vars, 'go', marker='x', linestyle='None', label='Variance')
-    ax2.axhline(y=var_sol_fine(P_hat), color='r', linestyle='-', label='Variance reference solution')
-    ax2.set_xscale('log')
-    ax2.set_xlabel('MC Samples')
-    ax2.set_ylabel('Variance')
-    ax2.legend(loc='upper left')
-    ax2.grid(True)
-
-    plt.suptitle(f'Means and Variance of û(x,y) in point ({P_hat.x()}, {P_hat.y()}) diffusion problem')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    grid_z_mean = griddata((x_coords, y_coords), z_values_fine_mean, (grid_x, grid_y), method='linear')
+    fig_mean, ax = plt.subplots(figsize=(10, 8))
+    cp = ax.contourf(grid_x, grid_y, grid_z_mean, levels=100, cmap='viridis')
+    cbar = plt.colorbar(cp)
+    cbar.ax.tick_params(labelsize=20)
+    cbar.locator = MaxNLocator(nbins=5)
+    cbar.update_ticks()
+    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax.set_title(r'Mean estimation $\hat{u}(\hat{x},\omega)$', fontsize=24)
+    ax.set_xlabel(r'$\hat{x}_1$', fontsize=24)
+    ax.set_ylabel(r'$\hat{x}_2$', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
+    ax.legend(loc='upper left', fontsize=20)
+    plt.tight_layout()
     plt.show()
 
+    grid_z_var = griddata((x_coords, y_coords), z_values_fine_var, (grid_x, grid_y), method='linear')
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    cp = ax.contourf(grid_x, grid_y, grid_z_var, levels=100, cmap='viridis')
+    cbar = plt.colorbar(cp)
+    cbar.ax.tick_params(labelsize=20)
+    cbar.locator = MaxNLocator(nbins=5)
+    cbar.update_ticks()
+    # cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
+    cbar.ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.set_title(r'Variance estimation $\hat{u}(\hat{x},\omega)$', fontsize=24)
+    ax.set_xlabel(r'$\hat{x}_1$', fontsize=24)
+    ax.set_ylabel(r'$\hat{x}_2$', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
+    ax.legend(loc='upper left', fontsize=20)
+    plt.tight_layout()
+    plt.show()
+
+
+    # Plot means
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, u_sols_sparse_P_hat_means, 'bo', marker='x', linestyle='None', label='Means', markersize=10)
+    ax.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
+    ax.axhline(y=mean_sol_fine(P_hat), color='r', linestyle='-', label='Mean reference solution')
+    ax.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel('Mean', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Plot variance
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, u_sols_sparse_P_hat_vars, 'go', marker='x', linestyle='None', label='Variance', markersize=10)
+    ax.axhline(y=var_sol_fine(P_hat), color='r', linestyle='-', label='Variance reference solution')
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel('Variance', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
     # Plot L2 and H1 errors
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$\text{L}^2$ Error', markersize=10)
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel(r'$\text{L}^2$ Error', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
-    ax1.set_xscale('log')
-    # ax1.set_yscale('log')
-    ax1.set_xlabel('MC Samples')
-    ax1.set_ylabel('L2 Error')
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-
-    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
-    ax2.set_xscale('log')
-    # ax2.set_yscale('log')
-    ax2.set_xlabel('MC Samples')
-    ax2.set_ylabel('H1 Error')
-    ax2.legend(loc='upper left')
-    ax2.grid(True)
-
-    plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution diffusion problem')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$\text{H}^1$ Error', markersize=10)
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel(r'$\text{H}^1$ Error', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
     plt.show()
 
 # Sobol
@@ -438,7 +466,7 @@ def diffusion_sobol_calc_indices_from_data(fem_res: int, kl_res: int, size_xi_v:
 
     return S_single, S_total, f_A.shape[0]
 
-def diffusion_plot_sobols(S_single, S_total, mc_sample_size, size_xi_v, title):
+def diffusion_plot_sobols(S_single, S_total, mc_sample_size, size_xi_v):
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
@@ -447,11 +475,12 @@ def diffusion_plot_sobols(S_single, S_total, mc_sample_size, size_xi_v, title):
 
     ax.bar(np.arange(len(S_single)), S_single, width=bar_width, label='First Order')
     ax.bar(np.arange(len(S_single)) + bar_width, S_total, width=bar_width, label='Total Effect')
-    x_labels = [fr"$\xi_{i+1}^v$" for i in range(size_xi_v)] + [fr"$\xi_{i+1}^z$" for i in range(len(S_single) - size_xi_v)]
-    ax.set_xticklabels(x_labels)
+    x_labels = [fr"$\xi_{i+1}^V$" for i in range(size_xi_v)] + [fr"$\xi_{i+1}^Z$" for i in range(len(S_single) - size_xi_v)]
+    ax.set_xticklabels(x_labels, fontsize=24)
     ax.set_xticks(np.arange(len(S_single)) + bar_width / 2)
-    ax.set_ylabel('Sensitivity [-]')
-    ax.set_title(f'{title} Sample Size: {mc_sample_size}')
+    ax.set_ylabel('Sensitivity [-]', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
     ax.grid(True)
-    ax.legend()
+    ax.legend(fontsize=20)
     plt.show()
+    print(f"Sample size: {mc_sample_size}")

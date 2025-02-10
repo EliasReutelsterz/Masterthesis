@@ -185,93 +185,77 @@ def rank_statistics(mc_sample_size, mesh_resolution_fem, P, index, randomFieldV,
     V_hat = 1/mc_sample_size * sum([y[i]**2 for i in range(mc_sample_size)]) - y_bar**2
     return V_hat_j / V_hat
 
-def rhs_random_functional_valued_output_sobol_estimation_u_hat(mc_sample_size: int, mesh_resolution: int, size_of_xi: int) -> tuple[np.array, np.array]:
+# def rhs_random_functional_valued_output_sobol_estimation_u_hat(mc_sample_size: int, mesh_resolution: int, size_of_xi: int) -> tuple[np.array, np.array]:
 
-    randomFieldV, jacobianV = calculate_vector_field_eigenpairs(mesh_resolution)
+#     randomFieldV, jacobianV = calculate_vector_field_eigenpairs(mesh_resolution)
     
-    # Collect points P
-    Ps = [fe.Point(basis_function.middle_point) for basis_function in randomFieldV.basis_functions]
-    N = len(Ps)
-    weights = [basis_function.triangle_area for basis_function in randomFieldV.basis_functions]
+#     # Collect points P
+#     Ps = [fe.Point(basis_function.middle_point) for basis_function in randomFieldV.basis_functions]
+#     N = len(Ps)
+#     weights = [basis_function.triangle_area for basis_function in randomFieldV.basis_functions]
     
-    # Sample all xis, not only the ones that are investigated
-    len_xi_total = randomFieldV.J
-    A = np.zeros((mc_sample_size, len_xi_total + 2))
-    B = np.zeros((mc_sample_size, len_xi_total + 2))
+#     # Sample all xis, not only the ones that are investigated
+#     len_xi_total = randomFieldV.J
+#     A = np.zeros((mc_sample_size, len_xi_total + 2))
+#     B = np.zeros((mc_sample_size, len_xi_total + 2))
 
-    for xi_index in range(len_xi_total):
-        A[:, xi_index] = np.random.uniform(-np.sqrt(3), np.sqrt(3), mc_sample_size)
-        B[:, xi_index] = np.random.uniform(-np.sqrt(3), np.sqrt(3), mc_sample_size)
+#     for xi_index in range(len_xi_total):
+#         A[:, xi_index] = np.random.uniform(-np.sqrt(3), np.sqrt(3), mc_sample_size)
+#         B[:, xi_index] = np.random.uniform(-np.sqrt(3), np.sqrt(3), mc_sample_size)
 
-    for F_index in range(2):
-        A[:, len_xi_total + F_index] = np.random.random(size=mc_sample_size)
-        B[:, len_xi_total + F_index] = np.random.random(size=mc_sample_size)
+#     for F_index in range(2):
+#         A[:, len_xi_total + F_index] = np.random.random(size=mc_sample_size)
+#         B[:, len_xi_total + F_index] = np.random.random(size=mc_sample_size)
 
-    f_A = np.zeros((mc_sample_size, N))
-    f_B = np.zeros((mc_sample_size, N))
+#     f_A = np.zeros((mc_sample_size, N))
+#     f_B = np.zeros((mc_sample_size, N))
 
-    for m in range(mc_sample_size):
-        u_sol_A = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, A[m, :len_xi_total], A[m, len_xi_total:])
-        u_sol_B = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, B[m, :len_xi_total], B[m, len_xi_total:])
-        for P_index, P in enumerate(Ps):
-            f_A[m, P_index] = u_sol_A(P)
-            f_B[m, P_index] = u_sol_B(P)
+#     for m in range(mc_sample_size):
+#         u_sol_A = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, A[m, :len_xi_total], A[m, len_xi_total:])
+#         u_sol_B = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, B[m, :len_xi_total], B[m, len_xi_total:])
+#         for P_index, P in enumerate(Ps):
+#             f_A[m, P_index] = u_sol_A(P)
+#             f_B[m, P_index] = u_sol_B(P)
         
-    f_0_squared = np.mean(f_A, axis=0) * np.mean(f_B, axis=0)
+#     f_0_squared = np.mean(f_A, axis=0) * np.mean(f_B, axis=0)
 
-    S_single = np.zeros(size_of_xi + 2)
-    S_total = np.zeros(size_of_xi + 2)
+#     S_single = np.zeros(size_of_xi + 2)
+#     S_total = np.zeros(size_of_xi + 2)
 
-    for i in range(size_of_xi + 2):
-        A_B_i = np.zeros((mc_sample_size, len_xi_total + 2))
-        if i >= size_of_xi:
-            # F cases
-            rel_index = i - size_of_xi
-            for param_index in range(len_xi_total + 2):
-                if param_index == len_xi_total + rel_index:
-                    A_B_i[:, param_index] = B[:, param_index]
-                else:
-                    A_B_i[:, param_index] = A[:, param_index]
-        else:
-            for param_index in range(len_xi_total + 2):
-                if param_index == i:
-                    A_B_i[:, param_index] = B[:, param_index]
-                else:
-                    A_B_i[:, param_index] = A[:, param_index]
-        f_A_B_i = np.zeros((mc_sample_size, N))
-        for m in range(mc_sample_size):
-            u_sol_A_B_i = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, A_B_i[m, :len_xi_total], A_B_i[m, len_xi_total:])
-            for P_index, P in enumerate(Ps):
-                f_A_B_i[m, P_index] = u_sol_A_B_i(P)
+#     for i in range(size_of_xi + 2):
+#         A_B_i = np.zeros((mc_sample_size, len_xi_total + 2))
+#         if i >= size_of_xi:
+#             # F cases
+#             rel_index = i - size_of_xi
+#             for param_index in range(len_xi_total + 2):
+#                 if param_index == len_xi_total + rel_index:
+#                     A_B_i[:, param_index] = B[:, param_index]
+#                 else:
+#                     A_B_i[:, param_index] = A[:, param_index]
+#         else:
+#             for param_index in range(len_xi_total + 2):
+#                 if param_index == i:
+#                     A_B_i[:, param_index] = B[:, param_index]
+#                 else:
+#                     A_B_i[:, param_index] = A[:, param_index]
+#         f_A_B_i = np.zeros((mc_sample_size, N))
+#         for m in range(mc_sample_size):
+#             u_sol_A_B_i = solve_poisson_for_given_sample_rhs_random(mesh_resolution, jacobianV, A_B_i[m, :len_xi_total], A_B_i[m, len_xi_total:])
+#             for P_index, P in enumerate(Ps):
+#                 f_A_B_i[m, P_index] = u_sol_A_B_i(P)
         
-        var_g_i = (1 / mc_sample_size) * np.sum(f_B * (f_A_B_i - f_A), axis=0)
-        E_var_g_i = (1 / mc_sample_size) * np.sum(f_A * (f_A - f_A_B_i), axis=0)
-        var_g = (1 / mc_sample_size) * np.sum(f_A**2, axis=0) - f_0_squared
+#         var_g_i = (1 / mc_sample_size) * np.sum(f_B * (f_A_B_i - f_A), axis=0)
+#         E_var_g_i = (1 / mc_sample_size) * np.sum(f_A * (f_A - f_A_B_i), axis=0)
+#         var_g = (1 / mc_sample_size) * np.sum(f_A**2, axis=0) - f_0_squared
 
-        numerator_s_single = np.sum(weights * var_g_i)
-        numerator_s_total = np.sum(weights * E_var_g_i)
-        denominator = np.sum(weights * var_g)
+#         numerator_s_single = np.sum(weights * var_g_i)
+#         numerator_s_total = np.sum(weights * E_var_g_i)
+#         denominator = np.sum(weights * var_g)
 
-        S_single[i] = numerator_s_single / denominator
-        S_total[i] = numerator_s_total / denominator
+#         S_single[i] = numerator_s_single / denominator
+#         S_total[i] = numerator_s_total / denominator
 
-    return S_single, S_total
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-
-    # Set width for each bar
-    bar_width = 0.35
-
-    ax.bar(np.arange(len(S_single)), S_single, width=bar_width, label='First Order')
-    ax.bar(np.arange(len(S_single)) + bar_width, S_total, width=bar_width, label='Total Effect')
-    x_labels = [fr"$\xi_{{{i+1}}}$" for i in range(len(S_single) - 2)] + [r"$F_1$", r"$F_2$"]
-    ax.set_xticklabels(x_labels)
-    ax.set_xticks(np.arange(len(S_single)) + bar_width / 2)
-    ax.set_ylabel('Sensitivity [-]')
-    ax.set_title(f'{title} Sample Size: {mc_sample_size}')
-    ax.grid(True)
-    ax.legend()
-    plt.show()
+#     return S_single, S_total
 
 def poisson_rhs_random_save_results_to_csv(u_sols_evaluated: np.array, xis: np.array, fem_res: int, kl_res: int):
     i = 0
@@ -330,6 +314,9 @@ def poisson_rhs_random_analyse_two_resolutions_from_data_u_hat(resolution_sparse
             break
     # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
 
+
+    print(f"Sample size fine: {data_fine.shape[0]}")
+    print(f"Sample sizes sparse: {mc_sample_sizes}")
 
     mean_sol_fine = fe.Function(V_sparse)
     mean_sol_fine.set_allow_extrapolation(True)
@@ -396,77 +383,103 @@ def poisson_rhs_random_analyse_two_resolutions_from_data_u_hat(resolution_sparse
         z_values_fine_mean.append(mean_sol_fine(x_coords[i], y_coords[i]))
         z_values_fine_var.append(var_sol_fine(x_coords[i], y_coords[i]))
 
-    grid_z = griddata((x_coords, y_coords), z_values_fine_mean, (grid_x, grid_y), method='linear')
-    fig_mean = go.Figure(data=[go.Surface(z=grid_z, x=grid_x, y=grid_y, colorscale='Viridis')])
-    fig_mean.update_layout(title=dict(text="Mean estimation û(x,y) rhs random", x=0.5, y=0.95),
-                    autosize=True,
-                    # height=400,
-                    margin=dict(l=10, r=10, b=10, t=20),
-                    scene=dict(
-                        xaxis_title='x-axis',
-                        yaxis_title='y-axis',
-                        zaxis_title='û(x, y)'))
-    fig_mean.show()
-
-    grid_z = griddata((x_coords, y_coords), z_values_fine_var, (grid_x, grid_y), method='linear')
-    fig_var = go.Figure(data=[go.Surface(z=grid_z, x=grid_x, y=grid_y, colorscale='Viridis', colorbar=dict(exponentformat='e'))])
-    fig_var.update_layout(title=dict(text="Variance estimation û(x,y) rhs random", x=0.5, y=0.95),
-                      autosize=True,
-                    # height=400,
-                    margin=dict(l=10, r=10, b=10, t=20),
-                    scene=dict(
-                        xaxis=dict(title='x-axis', exponentformat='e'),
-                        yaxis=dict(title='y-axis', exponentformat='e'),
-                        zaxis=dict(title='z-axis', exponentformat='e')))
-    fig_var.show()
-
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    # Plot means
-    ax1.plot(mc_sample_sizes, u_sols_sparse_P_hat_means, 'bo', marker='x', linestyle='None', label='Means')
-    ax1.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
-    ax1.axhline(y=mean_sol_fine(P_hat), color='r', linestyle='-', label='Mean reference solution')
-    ax1.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
-    ax1.set_xscale('log')
-    ax1.set_xlabel('MC Samples')
-    ax1.set_ylabel('Means')
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-
-    # Plot variance
-    ax2.plot(mc_sample_sizes, u_sols_sparse_P_hat_vars, 'go', marker='x', linestyle='None', label='Variance')
-    ax2.axhline(y=var_sol_fine(P_hat), color='r', linestyle='-', label='Variance reference solution')
-    ax2.set_xscale('log')
-    ax2.set_xlabel('MC Samples')
-    ax2.set_ylabel('Variance')
-    ax2.legend(loc='upper left')
-    ax2.grid(True)
-
-    plt.suptitle(f'Means and Variance of û(x,y) in point ({P_hat.x()}, {P_hat.y()}) rhs random')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    grid_z_mean = griddata((x_coords, y_coords), z_values_fine_mean, (grid_x, grid_y), method='linear')
+    fig_mean, ax = plt.subplots(figsize=(10, 8))
+    cp = ax.contourf(grid_x, grid_y, grid_z_mean, levels=100, cmap='viridis')
+    cbar = plt.colorbar(cp)
+    cbar.ax.tick_params(labelsize=20)
+    cbar.locator = MaxNLocator(nbins=5)
+    cbar.update_ticks()
+    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax.set_title(r'Mean estimation $\hat{u}(\hat{x},\omega)$', fontsize=24)
+    ax.set_xlabel(r'$\hat{x}_1$', fontsize=24)
+    ax.set_ylabel(r'$\hat{x}_2$', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
+    ax.legend(loc='upper left', fontsize=20)
+    plt.tight_layout()
     plt.show()
 
+    grid_z_var = griddata((x_coords, y_coords), z_values_fine_var, (grid_x, grid_y), method='linear')
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    cp = ax.contourf(grid_x, grid_y, grid_z_var, levels=100, cmap='viridis')
+    cbar = plt.colorbar(cp)
+    cbar.ax.tick_params(labelsize=20)
+    cbar.locator = MaxNLocator(nbins=5)
+    cbar.update_ticks()
+    # cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
+    cbar.ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.set_title(r'Variance estimation $\hat{u}(\hat{x},\omega)$', fontsize=24)
+    ax.set_xlabel(r'$\hat{x}_1$', fontsize=24)
+    ax.set_ylabel(r'$\hat{x}_2$', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
+    ax.legend(loc='upper left', fontsize=20)
+    plt.tight_layout()
+    plt.show()
+
+
+    # Plot means
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, u_sols_sparse_P_hat_means, 'bo', marker='x', linestyle='None', label='Means', markersize=10)
+    ax.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
+    ax.axhline(y=mean_sol_fine(P_hat), color='r', linestyle='-', label='Mean reference solution')
+    ax.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel('Mean', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Plot variance
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, u_sols_sparse_P_hat_vars, 'go', marker='x', linestyle='None', label='Variance', markersize=10)
+    ax.axhline(y=var_sol_fine(P_hat), color='r', linestyle='-', label='Variance reference solution')
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel('Variance', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
     # Plot L2 and H1 errors
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$\text{L}^2$ Error', markersize=10)
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel(r'$\text{L}^2$ Error', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
-    ax1.set_xscale('log')
-    # ax1.set_yscale('log')
-    ax1.set_xlabel('MC Samples')
-    ax1.set_ylabel('L2 Error')
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-
-    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
-    ax2.set_xscale('log')
-    # ax2.set_yscale('log')
-    ax2.set_xlabel('MC Samples')
-    ax2.set_ylabel('H1 Error')
-    ax2.legend(loc='upper left')
-    ax2.grid(True)
-
-    plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution rhs random')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    fig_var, ax = plt.subplots(figsize=(10, 8))
+    ax.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$\text{H}^1$ Error', markersize=10)
+    ax.set_xscale('log')
+    ax.set_xlabel('MC Samples', fontsize=24)
+    ax.set_ylabel(r'$\text{H}^1$ Error', fontsize=24)
+    ax.legend(loc='upper left', fontsize=20)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.get_offset_text().set_fontsize(20)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.grid(True)
+    plt.tight_layout()
     plt.show()
 
 # Sobol
@@ -599,7 +612,7 @@ def poisson_rhs_random_sobol_calc_indices_from_data(fem_res: int, kl_res: int, s
 
     return S_single, S_total, f_A.shape[0]
 
-def poisson_rhs_random_plot_sobols(S_single, S_total, mc_sample_size, title):
+def poisson_rhs_random_plot_sobols(S_single, S_total, mc_sample_size):
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
@@ -608,12 +621,13 @@ def poisson_rhs_random_plot_sobols(S_single, S_total, mc_sample_size, title):
 
     ax.bar(np.arange(len(S_single)), S_single, width=bar_width, label='First Order')
     ax.bar(np.arange(len(S_single)) + bar_width, S_total, width=bar_width, label='Total Effect')
-    x_labels = [fr"$\xi_{{{i+1}}}$" for i in range(len(S_single) - 2)] + [r"$F_1$", r"$F_2$"]
-    ax.set_xticklabels(x_labels)
+    x_labels = [fr"$\xi_{{{i+1}}}$" for i in range(len(S_single) - 2)] + [r"$\omega_1^{(1)}$", r"$\omega_1^{(2)}$"]
+    ax.set_xticklabels(x_labels, fontsize=24)
     ax.set_xticks(np.arange(len(S_single)) + bar_width / 2)
-    ax.set_ylabel('Sensitivity [-]')
-    ax.set_title(f'{title} Sample Size: {mc_sample_size}')
+    ax.set_ylabel('Sensitivity [-]', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
     ax.grid(True)
-    ax.legend()
+    ax.legend(fontsize=20)
     plt.show()
+    print(f"Sample size: {mc_sample_size}")
 

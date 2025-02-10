@@ -41,7 +41,7 @@
 # class InnerCircleBoundary(fe.SubDomain):
 #     def inside(self, x, on_boundary):
 #         dist_to_center = euclidean_distance(x, circ_center)
-#         if on_boundary and dist_to_center < circ_radius + vertex_length/2:
+#         if on_boundary and dist_to_center < circ_radius + vertex_length/3:
 #             inner_circle_boundary_points.append(np.array([x[0], x[1]]))
 #             return True
 #         else:

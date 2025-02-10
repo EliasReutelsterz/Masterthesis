@@ -343,7 +343,7 @@ class InnerCircleBoundary(fe.SubDomain):
 
     def inside(self, x, on_boundary):
         dist_to_center = euclidean_distance(x, self.circ_center)
-        return on_boundary and dist_to_center < self.circ_radius + self.vertex_length/2
+        return on_boundary and dist_to_center < self.circ_radius + self.vertex_length/3
 
 class LeftBoundary(fe.SubDomain):
         def inside(self, x, on_boundary):
@@ -361,7 +361,7 @@ def get_inner_circle_boundary_points(mesh: fe.Mesh):
     vertex_length = first_cell.h()
     inner_circle_boundary_points = []
     for point in mesh.coordinates():
-        if euclidean_distance(point, np.array([0.16, 0.16])) < 0.02 + vertex_length/2:
+        if euclidean_distance(point, np.array([0.16, 0.16])) < 0.02 + vertex_length/3:
             inner_circle_boundary_points.append(point)
     return np.array(inner_circle_boundary_points)
 
@@ -379,7 +379,7 @@ def get_right_boundary_points(mesh: fe.Mesh):
             right_boundary_points.append(point)
     return np.array(right_boundary_points)
 
-def solve_and_plot_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: float, randomFieldE: RandomFieldE = None, plot: bool = False):
+def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: float, randomFieldE: RandomFieldE = None, plot: bool = False):
 
     # Model parameters
     a_plate_length = 0.32
@@ -409,7 +409,7 @@ def solve_and_plot_model(mesh_resolution: int, omega1: np.array, omega2: np.arra
     class InnerCircleBoundary(fe.SubDomain):
         def inside(self, x, on_boundary):
             dist_to_center = euclidean_distance(x, circ_center)
-            if on_boundary and dist_to_center < circ_radius + vertex_length/2:
+            if on_boundary and dist_to_center < circ_radius + vertex_length/3:
                 inner_circle_boundary_points.append(np.array([x[0], x[1]]))
                 return True
             else:
@@ -454,7 +454,7 @@ def solve_and_plot_model(mesh_resolution: int, omega1: np.array, omega2: np.arra
     perturbed_mesh = perturb_mesh(mesh=mesh, omega=omega2)
     randomFieldVExpression = RandomFieldVExpression(omega=omega2, domain=mesh)
 
-    # Random field E \circ V #! \circ V is important
+    # Random field Ê and E
     if not randomFieldE:
         randomFieldE = calculate_randomFieldE(mesh_resolution=mesh_resolution)
     randomFieldEHatExpression = RandomFieldEHatExpression(randomFieldE=randomFieldE, xi=omega1, omega2=omega2)
@@ -635,3 +635,126 @@ def solve_and_plot_model(mesh_resolution: int, omega1: np.array, omega2: np.arra
     plt.show()
 
     return u_hat_sol
+
+
+# Monte Carlo
+#! STILL TO BE TESTED AND DEPENDS ON SIGMA FUNCTION
+
+def save_mc_samples(u_hat_sols: np.array, mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    base_path = f'mc_data_storage/klrese_{mesh_resolution_kl_e}_femres_{mesh_resolution}'
+    os.makedirs(base_path, exist_ok=True)
+    file_path = os.path.join(base_path, 'u_hat_sols.npy')
+    if os.path.exists(file_path):
+        u_hat_sols_existing = np.load(file_path)
+        u_hat_sols = np.concatenate((u_hat_sols_existing, u_hat_sols), axis=0)
+    np.save(file_path, u_hat_sols)
+
+def run_and_save_mc(mesh_resolution_kl_v: int, mesh_resolution_kl_e: int, mesh_resolution: int, sample_size: int, randomFieldE: RandomFieldE = None) -> None:
+    if randomFieldE is None:
+        randomFieldE = calculate_randomFieldE(mesh_resolution=mesh_resolution_kl_e)
+    mesh = create_reference_mesh(mesh_resolution=mesh_resolution)
+    u_hat_sols = np.zeros((sample_size, mesh.coordinates().shape[0], 2))
+    for i in range(sample_size):
+        omega1 = sample_omega1(randomFieldE)
+        omega2 = sample_omega2()
+        q = sample_q()
+        u_hat_sols[i] = solve_model(mesh_resolution=mesh_resolution, omega1=omega1, omega2=omega2, q=q, randomFieldE=randomFieldE).vector().get_local().reshape((-1, 2))
+    save_mc_samples(u_hat_sols, mesh_resolution_kl_v, mesh_resolution_kl_e, mesh_resolution)
+
+def mc_analysis(sparse_mesh_resolution_kl_e: int, fine_mesh_resolution_kl_e: int,
+                mesh_resolution: int, P_hat: fe.Point) -> None:
+    
+    sparse_u_hat_sols = np.load(f'mc_data_storage/klrese_{sparse_mesh_resolution_kl_e}_femres_{mesh_resolution}/u_hat_sols.npy')
+    fine_u_hat_sols = np.load(f'mc_data_storage/klrese_{fine_mesh_resolution_kl_e}_femres_{mesh_resolution}/u_hat_sols.npy')
+
+    # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
+    mc_sample_sizes = [4]
+    while True:
+        if np.sum(mc_sample_sizes) + mc_sample_sizes[-1]*2 <= sparse_u_hat_sols.shape[0]:
+            mc_sample_sizes.append(mc_sample_sizes[-1]*2)
+        else:
+            break
+    # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
+
+    # Mean and variance of fine solutions
+    V = fe.VectorFunctionSpace(create_reference_mesh(mesh_resolution), 'P', 1)
+    fine_mean_u_hat_sols = fe.Function(V)
+    fine_var_u_hat_sols = fe.Function(V)
+
+    fine_mean_u_hat_sols_array = np.mean(fine_u_hat_sols, axis=0).reshape(-1)
+    fine_var_u_hat_sols_array = np.var(fine_u_hat_sols, axis=0).reshape(-1)
+
+    fine_mean_u_hat_sols.vector()[:] = fine_mean_u_hat_sols_array
+    fine_var_u_hat_sols.vector()[:] = fine_var_u_hat_sols_array
+    
+    c = fe.plot(fine_mean_u_hat_sols, title='Mean of fine u_hat_sols')
+    plt.colorbar(c)
+    plt.show()
+
+    c = fe.plot(fine_var_u_hat_sols[0], title='Variance of first component of fine u_hat_sols')
+    plt.colorbar(c)
+    plt.show()
+
+    # Sparse solutions analysis
+
+    sparse_u_hat_sols_functions = []
+    sparse_u_hat_sols_P_hat_means = []
+    L2_errors = []
+    H1_errors = []
+    for mc_sample_index, mc_sample_size in enumerate(mc_sample_sizes):
+        sparse_mean_sol = fe.Function(V)
+        sparse_mean_sol.set_allow_extrapolation(True)
+
+        # Calculate mean solution
+        if mc_sample_index == 0:
+            data_sparse_sample = sparse_u_hat_sols[:mc_sample_size]
+        else:
+            data_sparse_sample = sparse_u_hat_sols[int(np.sum(mc_sample_sizes[:(mc_sample_index - 1)])):int(np.sum(mc_sample_sizes[:mc_sample_index]))]
+        sparse_mean_sol.vector()[:] = np.mean(data_sparse_sample, axis=0).reshape(-1)
+        sparse_u_hat_sols_functions.append(sparse_mean_sol)
+        sparse_u_hat_sols_P_hat_means.append(sparse_mean_sol(P_hat))
+        
+        # Calculate L2 and H1 errors
+        L2_errors.append(fe.errornorm(fine_mean_u_hat_sols, sparse_mean_sol, 'L2'))
+        H1_errors.append(fe.errornorm(fine_mean_u_hat_sols, sparse_mean_sol, 'H1'))
+
+    # Plot means in P_hat
+    mean_errors_P_hat = []
+    for i in range(len(mc_sample_sizes)):
+        mean_errors_P_hat.append(euclidean_distance(sparse_u_hat_sols_P_hat_means[i], fine_mean_u_hat_sols(P_hat)))
+    fig = plt.figure(figsize=(10, 4))
+    plt.plot(mc_sample_sizes, mean_errors_P_hat, 'bo', marker='x', linestyle='None')
+    plt.xscale('log')
+    plt.xlabel('MC Samples')
+    plt.ylabel('Error')
+    plt.legend(loc='upper left')
+    plt.title(fr"Euclidean error to mean reference solution in $\hat{{P}} = ({P_hat[0]}, {P_hat[1]})$")
+    plt.grid(True)
+    plt.show()
+
+    # Plots L2 and H1 errors
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
+    ax1.set_xscale('log')
+    #ax1.set_yscale('log')
+    ax1.set_xlabel('MC Samples')
+    ax1.set_ylabel('L2 Error')
+    ax1.legend(loc='upper left')
+    ax1.grid(True)
+
+    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
+    ax2.set_xscale('log')
+    #ax2.set_yscale('log')
+    ax2.set_xlabel('MC Samples')
+    ax2.set_ylabel('H1 Error')
+    ax2.legend(loc='upper left')
+    ax2.grid(True)
+
+    plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.show()
+
+# Sobol indices
+#! STILL TO DO, DEPENDS ON SIGMA FUNCTION AS WELL
