@@ -5,6 +5,8 @@ import mshr
 import os
 import time
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+
 
 
 # Random field V
@@ -379,7 +381,103 @@ def get_right_boundary_points(mesh: fe.Mesh):
             right_boundary_points.append(point)
     return np.array(right_boundary_points)
 
-def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: float, randomFieldE: RandomFieldE = None, plot: bool = False):
+def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: float, randomFieldE: RandomFieldE = None):
+
+    # Model parameters
+    a_plate_length = 0.32
+    r = 0.02
+    nu = 0.29
+    rho = 7850
+    grav = 9.80665
+    b = fe.Constant((0, -rho * grav))
+
+    # Mesh
+    bottom_left_corner = fe.Point(0, 0)
+    top_right_corner = fe.Point(a_plate_length, a_plate_length)
+    domain = mshr.Rectangle(bottom_left_corner, top_right_corner)
+    circ_center = fe.Point((top_right_corner[0] + bottom_left_corner[0])/2, (top_right_corner[1] + bottom_left_corner[1])/2)
+    circ_radius = r
+    domain = domain - mshr.Circle(circ_center, circ_radius)
+    mesh = mshr.generate_mesh(domain, mesh_resolution)
+
+    # mark all vertices
+    boundary_markers = fe.MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+    boundary_markers.set_all(0)
+
+    # mark left boundary
+    class LeftBoundary(fe.SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and fe.near(x[0], bottom_left_corner[0])
+    left_boundary = LeftBoundary()
+    left_boundary.mark(boundary_markers, 2)
+
+    def left_boundary_function(x, on_boundary):
+        return on_boundary and fe.near(x[0], bottom_left_corner[0])
+
+    # mark right boundary
+    class RightBoundary(fe.SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and fe.near(x[0], top_right_corner[0])
+    right_boundary = RightBoundary()
+    right_boundary.mark(boundary_markers, 3)
+
+
+    # Random field V
+    randomFieldVExpression = RandomFieldVExpression(omega=omega2, domain=mesh)
+
+    # Random field Ê and E
+    if not randomFieldE:
+        randomFieldE = calculate_randomFieldE(mesh_resolution=mesh_resolution)
+    randomFieldEHatExpression = RandomFieldEHatExpression(randomFieldE=randomFieldE, xi=omega1, omega2=omega2)
+
+    V = fe.VectorFunctionSpace(mesh, 'P', 1)
+    u_hat = fe.TrialFunction(V)
+    v_hat = fe.TestFunction(V)
+    u_hat_sol = fe.Function(V)
+
+    # Boundary conditions
+    ds = fe.Measure('ds', domain=mesh, subdomain_data=boundary_markers)
+    bc_left = fe.DirichletBC(V, fe.Constant((0,0)), left_boundary_function)
+    g = fe.Constant((q,0))
+
+    left_prefactor = fe.Expression('E / (2 * (1 + nu))', degree=1, E=randomFieldEHatExpression, nu=nu, domain=mesh)
+    right_prefactor = fe.Expression('E / (2 * (1 - nu))', degree=1, E=randomFieldEHatExpression, nu=nu, domain=mesh)
+
+    deg_test = 1
+    V_test = fe.VectorFunctionSpace(mesh, 'P', deg_test)
+    randomFieldVProj_test = fe.project(randomFieldVExpression, V_test)
+
+    W_test = fe.TensorFunctionSpace(mesh, 'P', deg_test)
+    jacobianProj = fe.project(fe.grad(randomFieldVProj_test), W_test)
+
+    J_inv_T = J_minus_TExpression(jacobianProj, domain=mesh)
+    J_helper1 = J_helper1Expression(jacobianProj, domain=mesh)
+    J_helper2 = J_helper2Expression(jacobianProj, domain=mesh)
+    det_J = J_determinantExpression(jacobianProj, domain=mesh)
+    inv_det_J = J_inv_determinantExpression(jacobianProj, domain=mesh)
+
+    left_integrand = det_J * fe.inner(fe.dot(J_inv_T, fe.grad(u_hat)), fe.dot(J_inv_T, fe.grad(left_prefactor * v_hat)))
+
+    G_hat = fe.as_matrix([[fe.dot(J_helper1, fe.grad(u_hat)[:, 0]) + (2 * nu)/(1 + nu) * fe.dot(J_helper2, fe.grad(u_hat)[:, 1]),
+                        (1 - nu)/(1 + nu) * fe.dot(J_helper2, fe.grad(u_hat)[:, 0])],
+                        [(1 - nu)/(1 + nu) * fe.dot(J_helper1, fe.grad(u_hat)[:, 1]),
+                            (2 * nu)/(1 + nu) * fe.dot(J_helper1, fe.grad(u_hat)[:, 0]) + fe.dot(J_helper2, fe.grad(u_hat)[:, 1])]])
+
+    right_integrand = fe.inner(G_hat, fe.dot(J_inv_T, fe.grad(right_prefactor * v_hat)))
+
+
+    a = (left_integrand + right_integrand) * fe.dx
+    # Right-hand side of weak form
+    L = det_J * fe.dot(b,v_hat) * fe.dx + det_J * fe.dot(g,v_hat) * ds(3) #! maybe with det, maybe not
+
+    # Solve Galerkin system
+    fe.solve(a==L, u_hat_sol, bc_left)
+
+
+    return u_hat_sol
+
+
+def solve_model_with_plots(mesh_resolution: int, omega1: np.array, omega2: np.array, q: float, randomFieldE: RandomFieldE = None):
 
     # Model parameters
     a_plate_length = 0.32
@@ -480,7 +578,7 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
     randomFieldVProj_test = fe.project(randomFieldVExpression, V_test)
 
     W_test = fe.TensorFunctionSpace(mesh, 'P', deg_test)
-    jacobianProj = fe.project(fe.grad(randomFieldVProj_test), W_test) #! consider higher degree polynomials
+    jacobianProj = fe.project(fe.grad(randomFieldVProj_test), W_test)
 
     J_inv_T = J_minus_TExpression(jacobianProj, domain=mesh)
     J_helper1 = J_helper1Expression(jacobianProj, domain=mesh)
@@ -488,25 +586,7 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
     det_J = J_determinantExpression(jacobianProj, domain=mesh)
     inv_det_J = J_inv_determinantExpression(jacobianProj, domain=mesh)
 
-    left_integrand = det_J * fe.inner(fe.dot(J_inv_T, fe.grad(u_hat)), fe.dot(J_inv_T, fe.grad(left_prefactor * v_hat)))
-
-    G_hat = fe.as_matrix([[fe.dot(J_helper1, fe.grad(u_hat)[:, 0]) + (2 * nu)/(1 + nu) * fe.dot(J_helper2, fe.grad(u_hat)[:, 1]),
-                        (1 - nu)/(1 + nu) * fe.dot(J_helper2, fe.grad(u_hat)[:, 0])],
-                        [(1 - nu)/(1 + nu) * fe.dot(J_helper1, fe.grad(u_hat)[:, 1]),
-                            (2 * nu)/(1 + nu) * fe.dot(J_helper1, fe.grad(u_hat)[:, 0]) + fe.dot(J_helper2, fe.grad(u_hat)[:, 1])]])
-
-    right_integrand = fe.inner(G_hat, fe.dot(J_inv_T, fe.grad(right_prefactor * v_hat)))
-
-
-    a = (left_integrand + right_integrand) * fe.dx
-    # Right-hand side of weak form
-    L = det_J * fe.dot(b,v_hat) * fe.dx + fe.dot(g,v_hat) * ds(3)
-
-    # Solve Galerkin system
-    fe.solve(a==L, u_hat_sol, bc_left)
-
-    if not plot:
-        return u_hat_sol
+    u_hat_sol = solve_model(mesh_resolution=mesh_resolution, omega1=omega1, omega2=omega2, q=q, randomFieldE=randomFieldE)
 
     # Plots
     plt.figure(figsize=(16, 8))
@@ -565,7 +645,7 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
 
     print(f"q: {q}")
 
-    # Plot Sigma(û)
+    # Plot Sigma(u)
     def sigma(u): # Stress tensor
         E = randomFieldEExpression
         u_grad = fe.grad(u)
@@ -583,11 +663,11 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
         return E_hat * inv_det_J * fe.as_matrix([[entry_11, entry_12], [entry_12, entry_22]])
 
     sigma_hat_proj = fe.project(sigma_hat(u_hat_sol)[:, 0], V_test)
-    for right_bounday_point in right_boundary_points:
-        print(f"sigma_hat_proj({right_bounday_point}): {sigma_hat_proj(right_bounday_point)}")
+    # for right_boundary_point in right_boundary_points:
+    #     print(f"sigma_hat_proj({right_boundary_point}): {sigma_hat_proj(right_boundary_point)}")
 
     plt.subplot(2, 4, 3)
-    c = fe.plot(sigma_hat_proj, title=r'$\sigma(\hat{u}) \cdot e_1$')
+    c = fe.plot(sigma_hat_proj, title=r'$\hat{\sigma}(\hat{u}) \cdot e_1$')
     plt.colorbar(c)
     plt.xlabel(r'$\hat{x}_1$')
     plt.ylabel(r'$\hat{x}_2$')
@@ -621,8 +701,9 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
 
     # Plot random field E(x)
     W_perturbed = fe.FunctionSpace(perturbed_mesh, "P", deg)
+    #! E_perturbed_proj = fe.project(randomFieldEExpression, W_perturbed)
     E_perturbed_proj = fe.Function(W_perturbed)
-    E_perturbed_proj.vector()[:] = E_proj.vector()[:]
+    E_perturbed_proj.assign(fe.project(randomFieldEExpression, W_perturbed))
     plt.subplot(2, 4, 8)
     c = fe.plot(E_perturbed_proj, title=r"Random Field $E(x, \omega_1)$")
     plt.colorbar(c)
@@ -634,7 +715,51 @@ def solve_model(mesh_resolution: int, omega1: np.array, omega2: np.array, q: flo
     plt.tight_layout()
     plt.show()
 
+
+
+
+    # Plot sigma(u) and sigma_hat(u_hat) along right boundary
+    right_boundary_points = np.linspace(start=0, stop=0.32, num=100)
+    sigma_u_right_boundary = np.array([sigma_proj(np.array([0.32, point])) for point in right_boundary_points])
+    
+
+    plt.figure(figsize=(8, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(right_boundary_points, sigma_u_right_boundary[:, 0], label=r'First component $\sigma(u) \cdot e_1$')
+    plt.axhline(q, label='Reference for $g[0]=q$', color="red")
+    plt.legend()
+    plt.xlabel(r'$x_2$')
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(right_boundary_points, sigma_u_right_boundary[:, 1], label=r'Second component $\sigma(u) \cdot e_1$')
+    plt.axhline(0, label='Reference for $g[1]=0$', color="red")
+    plt.xlabel(r'$x_2$')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+    sigma_hat_u_hat_right_boundary = np.array([sigma_hat_proj(np.array([0.32, point])) for point in right_boundary_points])
+    plt.figure(figsize=(8, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(right_boundary_points, sigma_hat_u_hat_right_boundary[:, 0], label=r'First component $\hat{\sigma}(\hat{u}) \cdot e_1$')
+    plt.axhline(q, label='Reference for $g[0]=q$', color="red")
+    plt.legend()
+    plt.xlabel(r'$\hat{x}_2$')
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(right_boundary_points, sigma_hat_u_hat_right_boundary[:, 1], label=r'Second component $\hat{\sigma}(\hat{u}) \cdot e_1$')
+    plt.axhline(0, label='Reference for $g[1]=0$', color="red")
+    plt.legend()
+    plt.xlabel(r'$\hat{x}_2$')
+    plt.tight_layout()
+    plt.show()
+
     return u_hat_sol
+
+
 
 
 # Monte Carlo
@@ -758,3 +883,37 @@ def mc_analysis(sparse_mesh_resolution_kl_e: int, fine_mesh_resolution_kl_e: int
 
 # Sobol indices
 #! STILL TO DO, DEPENDS ON SIGMA FUNCTION AS WELL
+
+
+
+# Image creation helpers
+
+def perturbation_function_with_more_returns(x: np.array, omega: np.array) -> np.array:
+    x = x - np.array([0.16, 0.16])
+    c = np.sqrt(x[0]**2 + x[1]**2)
+    x_circ_proj = 0.02/c * x
+
+    theta = np.arctan2(x[1], x[0]) # order has to be y, x as tan(y/x)=theta
+
+    if -np.pi/4 <= theta <= np.pi/4:
+        x_bound_proj = np.array([0.16, 0.16*np.tan(theta)])
+    elif np.pi/4 <= theta <= 3*np.pi/4:
+        x_bound_proj = np.array([0.16 / np.tan(theta), 0.16])
+    elif theta <= -3*np.pi/4 or theta >= 3*np.pi/4:
+        x_bound_proj = np.array([-0.16, -0.16*np.tan(theta)])
+    else:
+        x_bound_proj = np.array([-0.16 / np.tan(theta), -0.16])
+
+    h_max = np.sqrt((x_bound_proj[0] - x_circ_proj[0])**2 + (x_bound_proj[1] - x_circ_proj[1])**2)
+    h = np.sqrt((x[0] - x_bound_proj[0])**2 + (x[1] - x_bound_proj[1])**2)
+
+    bound_perturb = x_bound_proj
+
+    circ_perturb = np.array([omega[0] * x_circ_proj[0] + omega[1], omega[0] * x_circ_proj[1] + omega[2]])
+
+    x_pert = h / h_max * circ_perturb + (1 - h / h_max) * bound_perturb
+
+    return  np.array([0.16, 0.16]) + x_pert, \
+            np.array([0.16, 0.16]) + x_circ_proj, \
+            np.array([0.16, 0.16]) + circ_perturb, \
+            np.array([0.16, 0.16]) + bound_perturb

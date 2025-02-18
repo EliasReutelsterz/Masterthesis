@@ -674,3 +674,27 @@ def mc_analysis(sparse_mesh_resolution_kl_v: int, sparse_mesh_resolution_kl_e: i
 # Sobol Indices
 
 #! Still to do!
+
+
+# Image Creation
+def create_reference_mesh(mesh_resolution: int) -> fe.Mesh:
+    domain = mshr.Rectangle(fe.Point(0, 0), fe.Point(0.32, 0.32)) # used a_plate_length hardcoded
+    circ_center = fe.Point(0.16, 0.16)
+    circ_radius = 0.02 # used r hardcoded
+    domain = domain - mshr.Circle(circ_center, circ_radius)
+    mesh = mshr.generate_mesh(domain, mesh_resolution)
+    return mesh
+
+def perturb_mesh(mesh: fe.Mesh, omega: np.array, r: float, randomFieldVBar: RandomFieldVBar) -> fe.Mesh:
+    perturbed_mesh = fe.Mesh(mesh)
+    
+    coordinates = mesh.coordinates()
+    
+    perturbed_coordinates = np.zeros_like(coordinates)
+    for i in range(coordinates.shape[0]):
+        perturbed_point_coords = perturbation_function(coordinates[i], omega, r, randomFieldVBar)
+        perturbed_coordinates[i] = perturbed_point_coords
+    
+    perturbed_mesh.coordinates()[:] = perturbed_coordinates
+
+    return perturbed_mesh
