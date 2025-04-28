@@ -1270,7 +1270,7 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
     data_u_hat_sols = np.load(f'mc_data_storage/klres_e_{mesh_resolution_kl_e}_femres_{mesh_resolution}/u_hat_sols.npy')
 
     # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
-    mc_sample_sizes = [4]
+    mc_sample_sizes = [32]
     while True:
         if np.sum(mc_sample_sizes) + mc_sample_sizes[-1]*2 <= data_u_hat_sols.shape[0]:
             mc_sample_sizes.append(mc_sample_sizes[-1]*2)
@@ -1317,8 +1317,6 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
     ax.tick_params(axis='both', which='major', labelsize=20)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    # ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
-    ax.legend(loc='upper left', fontsize=20)
     plt.tight_layout()
     plt.show()
 
@@ -1340,7 +1338,7 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
             fine_var_u_hat_sols_22.vector()[j] += 1/(n - 1) * (u_hat_sol(point)[1] - fine_mean_u_hat_sols(point)[1])**2
 
     # Plot variances
-    fig, axs = plt.subplots(2, 2, figsize=(20, 16))
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
 
     variance_indices = [11, 12, 21, 22]
 
@@ -1360,16 +1358,16 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
         cbar.update_ticks()
         # cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
         cbar.ax.yaxis.get_offset_text().set_fontsize(20)
-        ax.set_title(rf'$Cov_{{{variance_indices[var_comp_index]}}}(\hat{{u}}(\hat{{x}},\omega))$', fontsize=24)
-        ax.set_xlabel(r'$\hat{x}_1$ [m]', fontsize=24)
-        ax.set_ylabel(r'$\hat{x}_2$ [m]', fontsize=24)
+        ax.set_title(rf'$Cov_{{{variance_indices[var_comp_index]}}}$', fontsize=24)
+        if var_comp_index == 0 or var_comp_index == 2:
+            ax.set_ylabel(r'$\hat{x}_2$ [m]', fontsize=24)
+        if var_comp_index == 2 or var_comp_index == 3:
+            ax.set_xlabel(r'$\hat{x}_1$ [m]', fontsize=24)        
         ax.set_xlim(-0.02, 0.34)
         ax.set_ylim(-0.02, 0.34)
         ax.tick_params(axis='both', which='major', labelsize=20)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
-        ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-        ax.legend(loc='upper left', fontsize=20)
-
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=3))
     plt.tight_layout()
     plt.show()
 
@@ -1395,14 +1393,14 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
         H1_errors.append(fe.errornorm(fine_mean_u_hat_sols, sparse_mean_sol, 'H1'))
 
     # Plots L2 and H1 errors
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5))
 
     ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
     ax1.set_xscale('log')
     #ax1.set_yscale('log')
     ax1.set_xlabel('MC Samples')
     ax1.set_ylabel('L2 Error')
-    ax1.legend(loc='upper left')
+    ax1.legend(loc='upper right')
     ax1.grid(True)
 
     ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
@@ -1410,7 +1408,7 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
     #ax2.set_yscale('log')
     ax2.set_xlabel('MC Samples')
     ax2.set_ylabel('H1 Error')
-    ax2.legend(loc='upper left')
+    ax2.legend(loc='upper right')
     ax2.grid(True)
 
     plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution')
@@ -1427,7 +1425,7 @@ def mc_analysis_sigma_hat(mesh_resolution_kl_e: int, mesh_resolution: int, P_hat
     data_sigma_hat_proj = np.load(f"mc_data_storage/klres_e_{mesh_resolution_kl_e}_femres_{mesh_resolution}/sigma_hat_proj.npy")
 
     # ----------- THIS PART CAN BE CHANGED FOR DIFFERENT MC SAMPLE SIZES ------------
-    mc_sample_sizes = [4]
+    mc_sample_sizes = [32]
     while True:
         if np.sum(mc_sample_sizes) + mc_sample_sizes[-1]*2 <= data_sigma_hat_proj.shape[0]:
             mc_sample_sizes.append(mc_sample_sizes[-1]*2)
@@ -1513,6 +1511,7 @@ def mc_analysis_sigma_hat(mesh_resolution_kl_e: int, mesh_resolution: int, P_hat
     ax.tick_params(axis='both', which='major', labelsize=20)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.scatter(P_hat.x(), P_hat.y(), color='red', s=100, label=r'$\hat{P}$')
     ax.legend(loc='upper left', fontsize=20)
 
     plt.tight_layout()
@@ -1551,23 +1550,35 @@ def mc_analysis_sigma_hat(mesh_resolution_kl_e: int, mesh_resolution: int, P_hat
         upper_confidence_bounds.append(sparse_sigma_hat_proj_P_hat_means[mc_sample_index] + 1.96 * np.sqrt(sparse_sigma_hat_proj_P_hat_vars[mc_sample_index] / mc_sample_size))
         lower_confidence_bounds.append(sparse_sigma_hat_proj_P_hat_means[mc_sample_index] - 1.96 * np.sqrt(sparse_sigma_hat_proj_P_hat_vars[mc_sample_index] / mc_sample_size))
 
-    # Plot mean solution at P_hat
-    # Plot means
-    fig_var, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(mc_sample_sizes, sparse_sigma_hat_proj_P_hat_means, 'bo', marker='x', linestyle='None', label='Means', markersize=10)
-    ax.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
-    ax.axhline(y=fine_mean_sigma_hat_proj(P_hat)[0], color='r', linestyle='-', label='Mean reference solution')
-    ax.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
+    # Plot convergence of mean solution at P_hat
+    
+    fig_var, ax = plt.subplots(figsize=(12, 6))
+    # Code for plotting linear scale
+    # ax.plot(mc_sample_sizes, sparse_sigma_hat_proj_P_hat_means, 'bo', marker='x', linestyle='None', label='Means', markersize=10)
+    # ax.fill_between(mc_sample_sizes, lower_confidence_bounds, upper_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
+    # ax.axhline(y=fine_mean_sigma_hat_proj(P_hat)[0], color='r', linestyle='-', label='Mean reference solution')
+    # ax.fill_between(mc_sample_sizes, lower_confidence_bound_fine, upper_confidence_bound_fine, alpha=0.2, color='red', label='95% Confidence Interval reference solution')
+    # ax.set_ylabel('Mean', fontsize=24)
+    # ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+
+    # Code for plotting log scale
+    ax.plot(mc_sample_sizes, np.abs(sparse_sigma_hat_proj_P_hat_means - fine_mean_sigma_hat_proj(P_hat)[0]), 'bo', marker='x', linestyle='None', label='Absolute Error', markersize=10)
+    max_abs_confidence_bounds = []
+    for i in range(len(mc_sample_sizes)):
+        max_abs_confidence_bounds.append(np.max([np.abs(lower_confidence_bounds[i] - fine_mean_sigma_hat_proj(P_hat)[0]), np.abs(upper_confidence_bounds[i] - fine_mean_sigma_hat_proj(P_hat)[0])]))
+    ax.fill_between(mc_sample_sizes, max_abs_confidence_bounds, alpha=0.2, label='95% Confidence Interval')
+    ax.set_yscale('log')
+    ax.set_ylabel('Error to reference', fontsize=24)
+
     ax.set_xscale('log')
     ax.set_xlabel('MC Samples', fontsize=24)
-    ax.set_ylabel('Mean', fontsize=24)
     ax.legend(loc='upper left', fontsize=20)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
     ax.tick_params(axis='both', which='major', labelsize=20)
     ax.yaxis.get_offset_text().set_fontsize(20)
     ax.grid(True)
     plt.tight_layout()
     plt.show()
+
 
 # Sobol indices
 
@@ -1587,170 +1598,8 @@ def get_quadrature_basis_functions(mesh: fe.Mesh):
         basis_functions.append(ConstBasisFunction(basis_function, vertex_coords))
     return basis_functions
 
-def sp_5_sobol_run_samples_and_save(mc_sample_size: int, fem_res: int, kl_res_e: int, size_of_xi_e: int, randomFieldE: RandomFieldE = None) -> None:
-
-    P_hat = fe.Point(0.16, 0.18)
-
-    if not randomFieldE:
-        randomFieldE = calculate_randomFieldE(kl_res_e)
-    
-    mesh = create_reference_mesh(fem_res)
-    quadrature_basis_functions = get_quadrature_basis_functions(mesh)
-    N = len(quadrature_basis_functions)
-
-    # total xis are: omega1, omega2, q (but only part of omega1 is investigated)
-    len_xi_total = randomFieldE.J + 3 + 1
-    A = np.zeros((mc_sample_size, len_xi_total))
-    B = np.zeros((mc_sample_size, len_xi_total))
-
-    A[:, :randomFieldE.J] = np.array([sample_omega1(randomFieldE) for _ in range(mc_sample_size)])
-    B[:, :randomFieldE.J] = np.array([sample_omega1(randomFieldE) for _ in range(mc_sample_size)])
-    A[:, randomFieldE.J:randomFieldE.J + 3] = np.array([sample_omega2() for _ in range(mc_sample_size)])
-    B[:, randomFieldE.J:randomFieldE.J + 3] = np.array([sample_omega2() for _ in range(mc_sample_size)])
-    A[:, randomFieldE.J + 3] = np.array([sample_q() for _ in range(mc_sample_size)])
-    B[:, randomFieldE.J + 3] = np.array([sample_q() for _ in range(mc_sample_size)])
-
-
-    sigma_hat_f_A = np.zeros((mc_sample_size))
-    u_hat_f_A = np.zeros((mc_sample_size, N, 2))
-    sigma_hat_f_B = np.zeros((mc_sample_size))
-    u_hat_f_B = np.zeros((mc_sample_size, N, 2))
-
-    mesh = create_reference_mesh(fem_res)
-    V = fe.VectorFunctionSpace(mesh, 'P', 1)
-    W = fe.TensorFunctionSpace(mesh, 'P', 1)
-
-    for m in range(mc_sample_size):
-        print(f"First loop Iteration {m+1}/{mc_sample_size}")
-        u_sol_A_data, sigma_hat_A_data = solve_model(fem_res, A[m, :randomFieldE.J], A[m, randomFieldE.J:randomFieldE.J + 3], A[m, randomFieldE.J + 3], randomFieldE)
-        u_sol_A = fe.Function(V)
-        u_sol_A.vector()[:] = u_sol_A_data
-        sigma_hat_A = fe.Function(W)
-        sigma_hat_A.vector()[:] = sigma_hat_A_data
-        u_sol_B_data, sigma_hat_B_data = solve_model(fem_res, B[m, :randomFieldE.J], B[m, randomFieldE.J:randomFieldE.J + 3], B[m, randomFieldE.J + 3], randomFieldE)
-        u_sol_B = fe.Function(V)
-        u_sol_B.vector()[:] = u_sol_B_data
-        sigma_hat_B = fe.Function(W)
-        sigma_hat_B.vector()[:] = sigma_hat_B_data
-
-        sigma_hat_f_A[m] = sigma_hat_A(P_hat)[0]
-        sigma_hat_f_B[m] = sigma_hat_B(P_hat)[0]
-
-        for basis_function_index, basis_function in enumerate(quadrature_basis_functions):
-            transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
-            active_quad_points = QUAD_POINTS_2DD_6
-            quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * basis_function.triangle_area) for orig_quad_point in active_quad_points]
-            int_A = 0
-            int_B = 0
-            for quad_point in quad_points:
-                int_A += u_sol_A(quad_point.point) * quad_point.weight
-                int_B += u_sol_B(quad_point.point) * quad_point.weight
-            u_hat_f_A[m, basis_function_index, :] = int_A
-            u_hat_f_B[m, basis_function_index, :] = int_B
-        
-    sigma_hat_f_C_is = []
-    u_hat_f_C_is = []
-
-    for i in range(size_of_xi_e + 4):
-        C_i = np.zeros((mc_sample_size, len_xi_total))
-        if i < size_of_xi_e:
-            for param_index in range(len_xi_total):
-                if param_index == i:
-                    C_i[:, param_index] = A[:, param_index]
-                else:
-                    C_i[:, param_index] = B[:, param_index]
-        else:
-            for param_index in range(len_xi_total):
-                if i + size_of_xi_e == param_index:
-                    C_i[:, param_index] = A[:, param_index]
-                else:
-                    C_i[:, param_index] = B[:, param_index]
-        
-        sigma_hat_f_C_i = np.zeros((mc_sample_size))
-        u_hat_f_C_i = np.zeros((mc_sample_size, N, 2))
-        for m in range(mc_sample_size):
-            print(f"Second loop xi {i+1} of {size_of_xi_e + 4}, Iteration {m+1}/{mc_sample_size}")
-            u_sol_C_i_data, sigma_hat_C_i_data = solve_model(fem_res, C_i[m, :randomFieldE.J], C_i[m, randomFieldE.J:randomFieldE.J + 3], C_i[m, randomFieldE.J + 3], randomFieldE)
-            u_sol_C_i = fe.Function(V)
-            u_sol_C_i.vector()[:] = u_sol_C_i_data
-            sigma_hat_C_i = fe.Function(W)
-            sigma_hat_C_i.vector()[:] = sigma_hat_C_i_data
-            sigma_hat_f_C_i[m] = sigma_hat_C_i(P_hat)[0]
-            for basis_function_index, basis_function in enumerate(quadrature_basis_functions):
-                transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
-                active_quad_points = QUAD_POINTS_2DD_6
-                quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * basis_function.triangle_area) for orig_quad_point in active_quad_points]
-                int_C_i = 0
-                for quad_point in quad_points:
-                    int_C_i += u_sol_C_i(quad_point.point) * quad_point.weight
-                u_hat_f_C_i[m, basis_function_index, :] = int_C_i
-        sigma_hat_f_C_is.append(sigma_hat_f_C_i)
-        u_hat_f_C_is.append(u_hat_f_C_i)
-        # f'mc_data_storage/klres_e_{mesh_resolution_kl_e}_femres_{mesh_resolution}'
-    base_path = f'sobol_data_storage/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}'
-    os.makedirs(base_path, exist_ok=True)
-    sigma_hat_f_A_path = os.path.join(base_path, 'sigma_hat_f_A.npy')
-    sigma_hat_f_B_path = os.path.join(base_path, 'sigma_hat_f_B.npy')
-    u_hat_f_A_path = os.path.join(base_path, 'u_hat_f_A.npy')
-    u_hat_f_B_path = os.path.join(base_path, 'u_hat_f_B.npy')
-
-    if os.path.exists(sigma_hat_f_A_path):
-        sigma_hat_f_A_existing = np.load(sigma_hat_f_A_path)
-        sigma_hat_f_A = np.concatenate((sigma_hat_f_A_existing, sigma_hat_f_A), axis=0)
-    if os.path.exists(sigma_hat_f_B_path):
-        sigma_hat_f_B_existing = np.load(sigma_hat_f_B_path)
-        sigma_hat_f_B = np.concatenate((sigma_hat_f_B_existing, sigma_hat_f_B), axis=0)
-    if os.path.exists(u_hat_f_A_path):
-        u_hat_f_A_existing = np.load(u_hat_f_A_path)
-        u_hat_f_A = np.concatenate((u_hat_f_A_existing, u_hat_f_A), axis=0)
-    if os.path.exists(u_hat_f_B_path):
-        u_hat_f_B_existing = np.load(u_hat_f_B_path)
-        u_hat_f_B = np.concatenate((u_hat_f_B_existing, u_hat_f_B), axis=0)
-
-    np.save(sigma_hat_f_A_path, sigma_hat_f_A)
-    np.save(sigma_hat_f_B_path, sigma_hat_f_B)
-    np.save(u_hat_f_A_path, u_hat_f_A)
-    np.save(u_hat_f_B_path, u_hat_f_B)
-
-    for i in range(size_of_xi_e + 4):
-        sigma_hat_f_C_i_path = os.path.join(base_path, f'sigma_hat_f_C_{i}.npy')
-        u_hat_f_C_i_path = os.path.join(base_path, f'u_hat_f_C_{i}.npy')
-        if os.path.exists(sigma_hat_f_C_i_path):
-            sigma_hat_f_C_i_existing = np.load(sigma_hat_f_C_i_path)
-            sigma_hat_f_C_is[i] = np.concatenate((sigma_hat_f_C_i_existing, sigma_hat_f_C_is[i]), axis=0)
-        if os.path.exists(u_hat_f_C_i_path):
-            u_hat_f_C_i_existing = np.load(u_hat_f_C_i_path)
-            u_hat_f_C_is[i] = np.concatenate((u_hat_f_C_i_existing, u_hat_f_C_is[i]), axis=0)
-        np.save(sigma_hat_f_C_i_path, sigma_hat_f_C_is[i])
-        np.save(u_hat_f_C_i_path, u_hat_f_C_is[i])
-
-    print("Sobol data saved")
-
-def sp_5_sobol_calc_indices_sigma_hat(fem_res: int, kl_res_e:int, size_of_xi_e: int) -> tuple[np.array, np.array]:
-    base_path = f"sobol_data_storage/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}"
-    f_A = np.load(os.path.join(base_path, 'sigma_hat_f_A.npy'))
-    f_B = np.load(os.path.join(base_path, 'sigma_hat_f_B.npy'))
-    f_C_is = [np.load(os.path.join(base_path, f'sigma_hat_f_C_{i}.npy')) for i in range(size_of_xi_e + 4)]
-
-    S_single = np.zeros(size_of_xi_e + 4)
-    S_total = np.zeros(size_of_xi_e + 4)
-
-    f_0_squared = np.mean(f_A, axis=0) * np.mean(f_B, axis=0)
-
-    for i in range(size_of_xi_e + 4):
-        f_C_i = f_C_is[i]
-
-        var_g_q_i = (1 / f_A.shape[0]) * np.sum(f_A * f_C_i, axis=0) - f_0_squared
-        var_g_q_i_tilde = (1 / f_A.shape[0]) * np.sum(f_B * f_C_i, axis=0) - f_0_squared
-        var_g = (1 / f_A.shape[0]) * np.sum(f_A**2, axis=0) - f_0_squared
-
-        S_single[i] = var_g_q_i / var_g
-        S_total[i] = 1 - var_g_q_i_tilde / var_g
-
-    return S_single, S_total, f_A.shape[0]
-
 def sp_5_sobol_calc_indices_u_hat(fem_res: int, kl_res_e:int, size_of_xi_e: int) -> tuple[np.array, np.array]:
-    base_path = f"sobol_data_storage/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}"
+    base_path = f"sobol_data_storage_2/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}"
     f_A = np.load(os.path.join(base_path, 'u_hat_f_A.npy')) # shape: (mc_sample_size, N, 2)
     f_B = np.load(os.path.join(base_path, 'u_hat_f_B.npy')) # shape: (mc_sample_size, N, 2)
     f_C_is = [np.load(os.path.join(base_path, f'u_hat_f_C_{i}.npy')) for i in range(size_of_xi_e + 4)] # shape: (mc_sample_size, N, 2)
@@ -1794,9 +1643,184 @@ def sp_5_plot_sobols(S_single: np.array, S_total: np.array, mc_sample_size: int,
     ax.set_ylabel('Sensitivity [-]', fontsize=24)
     ax.tick_params(axis='both', which='major', labelsize=20)
     ax.grid(True)
-    ax.legend(loc='upper right', fontsize=20)
+    ax.legend(loc='upper left', fontsize=20)
     plt.show()
     print(f"Sample size: {mc_sample_size}")
+
+def sp_5_sobol_run_samples_and_save_2(mc_sample_size: int, fem_res: int, kl_res_e: int, size_of_xi_e: int, randomFieldE: RandomFieldE = None) -> None:
+
+    if not randomFieldE:
+        randomFieldE = calculate_randomFieldE(kl_res_e)
+    
+    mesh = create_reference_mesh(fem_res)
+    quadrature_basis_functions = get_quadrature_basis_functions(mesh)
+    N = len(quadrature_basis_functions)
+
+    # total xis are: omega1, omega2, q (but only part of omega1 is investigated)
+    len_xi_total = randomFieldE.J + 3 + 1
+    A = np.zeros((mc_sample_size, len_xi_total))
+    B = np.zeros((mc_sample_size, len_xi_total))
+
+    A[:, :randomFieldE.J] = np.array([sample_omega1(randomFieldE) for _ in range(mc_sample_size)])
+    B[:, :randomFieldE.J] = np.array([sample_omega1(randomFieldE) for _ in range(mc_sample_size)])
+    A[:, randomFieldE.J:randomFieldE.J + 3] = np.array([sample_omega2() for _ in range(mc_sample_size)])
+    B[:, randomFieldE.J:randomFieldE.J + 3] = np.array([sample_omega2() for _ in range(mc_sample_size)])
+    A[:, randomFieldE.J + 3] = np.array([sample_q() for _ in range(mc_sample_size)])
+    B[:, randomFieldE.J + 3] = np.array([sample_q() for _ in range(mc_sample_size)])
+
+    mesh = create_reference_mesh(fem_res)
+    V = fe.VectorFunctionSpace(mesh, 'P', 1)
+    W = fe.TensorFunctionSpace(mesh, 'P', 1)
+    tensor_function = fe.Function(W)
+    M = tensor_function.vector().size()
+
+    sigma_hat_f_A = np.zeros((mc_sample_size, M))
+    u_hat_f_A = np.zeros((mc_sample_size, N, 2))
+    sigma_hat_f_B = np.zeros((mc_sample_size, M))
+    u_hat_f_B = np.zeros((mc_sample_size, N, 2))
+
+    for m in range(mc_sample_size):
+        print(f"First loop Iteration {m+1}/{mc_sample_size}")
+        u_sol_A_data, sigma_hat_A_data = solve_model(fem_res, A[m, :randomFieldE.J], A[m, randomFieldE.J:randomFieldE.J + 3], A[m, randomFieldE.J + 3], randomFieldE)
+        u_sol_A = fe.Function(V)
+        u_sol_A.vector()[:] = u_sol_A_data
+        sigma_hat_f_A[m] = sigma_hat_A_data
+        u_sol_B_data, sigma_hat_B_data = solve_model(fem_res, B[m, :randomFieldE.J], B[m, randomFieldE.J:randomFieldE.J + 3], B[m, randomFieldE.J + 3], randomFieldE)
+        u_sol_B = fe.Function(V)
+        u_sol_B.vector()[:] = u_sol_B_data
+        sigma_hat_f_B[m] = sigma_hat_B_data
+
+        for basis_function_index, basis_function in enumerate(quadrature_basis_functions):
+            transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
+            active_quad_points = QUAD_POINTS_2DD_6
+            quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * basis_function.triangle_area) for orig_quad_point in active_quad_points]
+            int_A = 0
+            int_B = 0
+            for quad_point in quad_points:
+                int_A += u_sol_A(quad_point.point) * quad_point.weight
+                int_B += u_sol_B(quad_point.point) * quad_point.weight
+            u_hat_f_A[m, basis_function_index, :] = int_A
+            u_hat_f_B[m, basis_function_index, :] = int_B
+        
+    sigma_hat_f_C_is = []
+    u_hat_f_C_is = []
+
+    for i in range(size_of_xi_e + 4):
+        C_i = np.zeros((mc_sample_size, len_xi_total))
+        if i < size_of_xi_e:
+            for param_index in range(len_xi_total):
+                if param_index == i:
+                    C_i[:, param_index] = A[:, param_index]
+                else:
+                    C_i[:, param_index] = B[:, param_index]
+        else:
+            for param_index in range(len_xi_total):
+                if i - size_of_xi_e == param_index - randomFieldE.J:
+                    C_i[:, param_index] = A[:, param_index]
+                else:
+                    C_i[:, param_index] = B[:, param_index]
+        
+        sigma_hat_f_C_i = np.zeros((mc_sample_size, M))
+        u_hat_f_C_i = np.zeros((mc_sample_size, N, 2))
+        for m in range(mc_sample_size):
+            print(f"Second loop xi {i+1} of {size_of_xi_e + 4}, Iteration {m+1}/{mc_sample_size}")
+            u_sol_C_i_data, sigma_hat_C_i_data = solve_model(fem_res, C_i[m, :randomFieldE.J], C_i[m, randomFieldE.J:randomFieldE.J + 3], C_i[m, randomFieldE.J + 3], randomFieldE)
+            u_sol_C_i = fe.Function(V)
+            u_sol_C_i.vector()[:] = u_sol_C_i_data
+            sigma_hat_f_C_i[m] = sigma_hat_C_i_data
+            for basis_function_index, basis_function in enumerate(quadrature_basis_functions):
+                transformation_matrix, transformation_vector = find_affine_transformation(basis_function.vertex_coords)
+                active_quad_points = QUAD_POINTS_2DD_6
+                quad_points = [Quad_point(np.dot(transformation_matrix, orig_quad_point.point) + transformation_vector, orig_quad_point.weight * 2 * basis_function.triangle_area) for orig_quad_point in active_quad_points]
+                int_C_i = 0
+                for quad_point in quad_points:
+                    int_C_i += u_sol_C_i(quad_point.point) * quad_point.weight
+                u_hat_f_C_i[m, basis_function_index, :] = int_C_i
+        sigma_hat_f_C_is.append(sigma_hat_f_C_i)
+        u_hat_f_C_is.append(u_hat_f_C_i)
+    base_path = f'sobol_data_storage_2/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}'
+    os.makedirs(base_path, exist_ok=True)
+    sigma_hat_f_A_path = os.path.join(base_path, 'sigma_hat_f_A.npy')
+    sigma_hat_f_B_path = os.path.join(base_path, 'sigma_hat_f_B.npy')
+    u_hat_f_A_path = os.path.join(base_path, 'u_hat_f_A.npy')
+    u_hat_f_B_path = os.path.join(base_path, 'u_hat_f_B.npy')
+
+    if os.path.exists(sigma_hat_f_A_path):
+        sigma_hat_f_A_existing = np.load(sigma_hat_f_A_path)
+        sigma_hat_f_A = np.concatenate((sigma_hat_f_A_existing, sigma_hat_f_A), axis=0)
+    if os.path.exists(sigma_hat_f_B_path):
+        sigma_hat_f_B_existing = np.load(sigma_hat_f_B_path)
+        sigma_hat_f_B = np.concatenate((sigma_hat_f_B_existing, sigma_hat_f_B), axis=0)
+    if os.path.exists(u_hat_f_A_path):
+        u_hat_f_A_existing = np.load(u_hat_f_A_path)
+        u_hat_f_A = np.concatenate((u_hat_f_A_existing, u_hat_f_A), axis=0)
+    if os.path.exists(u_hat_f_B_path):
+        u_hat_f_B_existing = np.load(u_hat_f_B_path)
+        u_hat_f_B = np.concatenate((u_hat_f_B_existing, u_hat_f_B), axis=0)
+
+    np.save(sigma_hat_f_A_path, sigma_hat_f_A)
+    np.save(sigma_hat_f_B_path, sigma_hat_f_B)
+    np.save(u_hat_f_A_path, u_hat_f_A)
+    np.save(u_hat_f_B_path, u_hat_f_B)
+
+    for i in range(size_of_xi_e + 4):
+        sigma_hat_f_C_i_path = os.path.join(base_path, f'sigma_hat_f_C_{i}.npy')
+        u_hat_f_C_i_path = os.path.join(base_path, f'u_hat_f_C_{i}.npy')
+        if os.path.exists(sigma_hat_f_C_i_path):
+            sigma_hat_f_C_i_existing = np.load(sigma_hat_f_C_i_path)
+            sigma_hat_f_C_is[i] = np.concatenate((sigma_hat_f_C_i_existing, sigma_hat_f_C_is[i]), axis=0)
+        if os.path.exists(u_hat_f_C_i_path):
+            u_hat_f_C_i_existing = np.load(u_hat_f_C_i_path)
+            u_hat_f_C_is[i] = np.concatenate((u_hat_f_C_i_existing, u_hat_f_C_is[i]), axis=0)
+        np.save(sigma_hat_f_C_i_path, sigma_hat_f_C_is[i])
+        np.save(u_hat_f_C_i_path, u_hat_f_C_is[i])
+
+    print("Sobol data saved")
+
+def sp_5_sobol_calc_indices_sigma_hat_2(fem_res: int, kl_res_e:int, size_of_xi_e: int) -> tuple[np.array, np.array]:
+    base_path = f"sobol_data_storage_2/klres_e_{kl_res_e}_femres_{fem_res}_size_of_xi_e_{size_of_xi_e}"
+    f_A_data = np.load(os.path.join(base_path, 'sigma_hat_f_A.npy'))
+    f_B_data = np.load(os.path.join(base_path, 'sigma_hat_f_B.npy'))
+    f_C_is_data = [np.load(os.path.join(base_path, f'sigma_hat_f_C_{i}.npy')) for i in range(size_of_xi_e + 4)]
+
+    mesh = create_reference_mesh(fem_res)
+    W = fe.TensorFunctionSpace(mesh, 'P', 1)
+    P_hat = fe.Point(0.16, 0.18)
+
+    f_A = np.zeros((f_A_data.shape[0]))
+    f_B = np.zeros((f_B_data.shape[0]))
+
+    for i in range(f_A_data.shape[0]):
+        sigma_hat_A = fe.Function(W)
+        sigma_hat_A.vector()[:] = f_A_data[i]
+        print(f"sigma_hat_A(P_hat): {sigma_hat_A(P_hat)}")
+        f_A[i] = sigma_hat_A(P_hat)[0]
+
+        sigma_hat_B = fe.Function(W)
+        sigma_hat_B.vector()[:] = f_B_data[i]
+        f_B[i] = sigma_hat_B(P_hat)[0]
+
+    S_single = np.zeros(size_of_xi_e + 4)
+    S_total = np.zeros(size_of_xi_e + 4)
+
+    f_0_squared = np.mean(f_A, axis=0) * np.mean(f_B, axis=0)
+
+    for i in range(size_of_xi_e + 4):
+        f_C_i = np.zeros((f_C_is_data[i].shape[0]))
+        for j in range(f_C_is_data[i].shape[0]):
+            sigma_hat_C = fe.Function(W)
+            sigma_hat_C.vector()[:] = f_C_is_data[i][j]
+            f_C_i[j] = sigma_hat_C(P_hat)[0]
+
+        var_g_q_i = (1 / f_A.shape[0]) * np.sum(f_A * f_C_i, axis=0) - f_0_squared
+        var_g_q_i_tilde = (1 / f_A.shape[0]) * np.sum(f_B * f_C_i, axis=0) - f_0_squared
+        var_g = (1 / f_A.shape[0]) * np.sum(f_A**2, axis=0) - f_0_squared
+
+        S_single[i] = var_g_q_i / var_g
+        S_total[i] = 1 - var_g_q_i_tilde / var_g
+
+    return S_single, S_total, f_A.shape[0]
+
 
 # Image creation helpers
 
