@@ -36,9 +36,9 @@ The primary goals of this codebase are:
 
 - To numerically solve differential equations.
 - To implement algorithms in the field of sensitivity analysis.
-- To compute and model random fields
+- To compute and model random fields.
 - To generate data for statistal analysis of the PDE models.
-- To visualize the domains, sample solutions and the statistical results.
+- To visualize the domains, the sample solutions and the statistical results.
 
 The implementation and the image generation support the theoretical arguments in the thesis document and should be used together.
 
@@ -46,10 +46,10 @@ The implementation and the image generation support the theoretical arguments in
 
 ## 2. Mathematical Context
 
-The domain mapping method is used to solve PDEs on a random domain. For this purpose, a mapping from the domain samples to a fixed reference domain is defined. This mapping results in an equivalent problem on the reference domain. This method is applied to a total of 5 different models. First to the Poisson equation defined on the unit disk
+The Domain Mapping Method is used to solve PDEs on a random domain. For this purpose, a mapping from the domain samples to a fixed reference domain is defined. This mapping results in an equivalent problem on the reference domain. This method is applied to a total of 5 different models. First to the Poisson equation defined on the unit disk
 
 $$
-\begin{align*} - \Delta \: u(x, \omega) &= 1 \hspace{1cm} \vert \hspace{1cm} x \in D(\omega) \\
+\begin{align*} - \Delta u(x, \omega) &= 1 \hspace{1cm} \vert \hspace{1cm} x \in D(\omega) \\
 u(x, \omega) &= 0 \hspace{1cm} \vert \hspace{1cm} x \in \delta D(\omega)
 \end{align*}
 $$
@@ -60,9 +60,9 @@ Then the method is applied to an elasticity equation defined on a steel plate wi
 
 $$
 \begin{align*}
-\frac{E(x, \omega_1)}{2 (1 + \nu)} \cdot \nabla^2 u(x, \omega) + \frac{E(x, \omega_1)}{2 (1 - \nu)} \cdot \nabla(\nabla \cdot u(x, \omega)) + b = 0 \hspace{1cm} & | \: x \in D(\omega_2) \\
-u(x, \omega) = 0 \hspace{1cm} & | \: x \in \Gamma_1 \\
-\sigma(u, x) \cdot n(x) = g \hspace{1cm} & | \: x \in \Gamma_2.
+\frac{E(x, \omega_1)}{2 (1 + \nu)} \cdot \nabla^2 u(x, \omega) + \frac{E(x, \omega_1)}{2 (1 - \nu)} \cdot \nabla(\nabla \cdot u(x, \omega)) + b = 0 \hspace{1cm} & | \hspace{0.1cm} x \in D(\omega_2) \\
+u(x, \omega) = 0 \hspace{1cm} & | \hspace{0.1cm} x \in \Gamma_1 \\
+\sigma(u, x) \cdot n(x) = g \hspace{1cm} & | \hspace{0.1cm} x \in \Gamma_2.
 \end{align*}
 $$
 
@@ -73,8 +73,6 @@ To model the random fields, their Karhunen-Loève expansion, introduced in chapt
 ---
 
 ## 3. Repository Structure
-
-This section clarifies the organization of files and directories within the repository.
 
 ```bash
 ├── images                                    # Images used in the thesis chapterwise.
@@ -138,14 +136,10 @@ While the full dependency list is in `environment.yml`, the core libraries centr
 - **NumPy (`numpy`):** Fundamental package for numerical computing with Python.
 - **SciPy (`scipy`):** Used for scientific and technical computing, including numerical integration, optimization, and linear algebra.
 - **Matplotlib (`matplotlib`):** For generating all plots and visualizations presented in the thesis.
-- **PETSc / SLEPc (`petsc`, `petsc4py`, `slepc`, `slepc4py`):** Powerful libraries for scientific computing, particularly for solving large-scale linear systems and eigenvalue problems, integrated via their Python wrappers.
-- **MPI for Python (`mpi4py`):** Enables parallel computing capabilities, crucial for larger simulations.
-- **JupyterLab (`jupyterlab`):** Provided for interactive exploration and generation of results via notebooks (if applicable).
-- **SymPy (`sympy`):** For symbolic mathematics (if used for analytical derivations or expression handling).
-- **Gmsh (`gmsh`):** Used for mesh generation (if applicable to your workflow).
-- **PyVista (`pyvista`):** For advanced 3D visualization of simulation results.
-- **Mayavi (`mayavi`):** Another visualization tool, often used for complex scientific data.
-- **Plotly (`plotly`):** For interactive data visualization (if used).
+- **JupyterLab (`jupyterlab`):** Provided for interactive exploration and generation of results via notebooks.
+- **SymPy (`sympy`):** For symbolic mathematics.
+- **Gmsh (`gmsh`):** Used for mesh generation.
+- **Plotly (`plotly`):** For interactive data visualization.
 - **Pandas (`pandas`):** For data manipulation and analysis, particularly with tabular data.
 
 ---
