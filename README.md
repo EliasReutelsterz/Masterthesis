@@ -49,9 +49,8 @@ The implementation and the image generation support the theoretical arguments in
 The domain mapping method is used to solve PDEs on a random domain. For this purpose, a mapping from the domain samples to a fixed reference domain is defined. This mapping results in an equivalent problem on the reference domain. This method is applied to a total of 5 different models. First to the Poisson equation defined on the unit disk
 
 $$
-\begin{align*}
-  - \Delta \: u(x, \omega) &= 1 \hspace{1cm} \vert \hspace{1cm} x \in D(\omega) \\
-  u(x, \omega) &= 0 \hspace{1cm} \vert \hspace{1cm} x \in \delta D(\omega)
+\begin{align*} - \Delta \: u(x, \omega) &= 1 \hspace{1cm} \vert \hspace{1cm} x \in D(\omega) \\
+u(x, \omega) &= 0 \hspace{1cm} \vert \hspace{1cm} x \in \delta D(\omega)
 \end{align*}
 $$
 
@@ -61,9 +60,9 @@ Then the method is applied to an elasticity equation defined on a steel plate wi
 
 $$
 \begin{align*}
-  \frac{E(x, \omega_1)}{2 (1 + \nu)} \cdot \nabla^2 u(x, \omega) + \frac{E(x, \omega_1)}{2 (1 - \nu)} \cdot \nabla(\nabla \cdot u(x, \omega)) + b = 0 \hspace{1cm} & | \: x \in D(\omega_2) \\
-  u(x, \omega) = 0 \hspace{1cm} & | \: x \in \Gamma_1 \\
-  \sigma(u, x) \cdot n(x) = g \hspace{1cm} & | \: x \in \Gamma_2.
+\frac{E(x, \omega_1)}{2 (1 + \nu)} \cdot \nabla^2 u(x, \omega) + \frac{E(x, \omega_1)}{2 (1 - \nu)} \cdot \nabla(\nabla \cdot u(x, \omega)) + b = 0 \hspace{1cm} & | \: x \in D(\omega_2) \\
+u(x, \omega) = 0 \hspace{1cm} & | \: x \in \Gamma_1 \\
+\sigma(u, x) \cdot n(x) = g \hspace{1cm} & | \: x \in \Gamma_2.
 \end{align*}
 $$
 
