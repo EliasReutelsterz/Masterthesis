@@ -272,4 +272,3 @@ dependencies:
       - traitsui==8.0.0
       - tzdata==2024.2
       - vtk==9.3.1
-prefix: /Users/elias/miniconda3/envs/fenics_x64
