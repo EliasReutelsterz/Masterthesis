@@ -6,7 +6,7 @@ def main():
     """Run the diffusion Sobol indices calculation with random samples.
     The resulting matrices are saved and automatically appended at poisson_and_variants/diffusion/sobol_data_storage/femres_{fem_res}_klres_{kl_res}_size_xi_v_{size_xi_v}_size_xi_z_{size_xi_z}"""
     # Create the parser
-    parser = argparse.ArgumentParser(description='Run Poisson rhs random samples for Sobol indices calculation.')
+    parser = argparse.ArgumentParser(description='Run diffusion samples for Sobol indices calculation.')
 
     # Add arguments
     parser.add_argument('--mc_samples', type=int, default=30, help='Number of Monte Carlo samples')

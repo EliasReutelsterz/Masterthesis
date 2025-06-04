@@ -6,7 +6,7 @@ def main():
     The combining of the files saved in poisson_and_variants/diffusion/mc_data_storage should be done by hand.
     The combined sample are saved in the file: poisson_and_variants/diffusion/mc_data_storage/samples_femres_{fem_res}_klres_{kl_res}_combined.csv"""
     # Create the parser
-    parser = argparse.ArgumentParser(description='Run Poisson samples calculation.')
+    parser = argparse.ArgumentParser(description='Run Diffusion samples calculation.')
 
     # Add arguments
     parser.add_argument('--mc_samples', type=int, default=30, help='Number of Monte Carlo samples')

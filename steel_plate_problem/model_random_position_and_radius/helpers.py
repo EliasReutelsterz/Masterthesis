@@ -1080,23 +1080,23 @@ def mc_analysis_u_hat(mesh_resolution_kl_e: int, mesh_resolution: int) -> None:
     # Plots L2 and H1 errors
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5))
 
-    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label='L2 Error')
+    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$L^2$ Error')
     ax1.set_xscale('log')
     #ax1.set_yscale('log')
     ax1.set_xlabel('MC Samples')
-    ax1.set_ylabel('L2 Error')
+    ax1.set_ylabel(r'$L^2$ Error')
     ax1.legend(loc='upper right')
     ax1.grid(True)
 
-    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label='H1 Error')
+    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$H^1$ Error')
     ax2.set_xscale('log')
     #ax2.set_yscale('log')
     ax2.set_xlabel('MC Samples')
-    ax2.set_ylabel('H1 Error')
+    ax2.set_ylabel(r'$H^1$ Error')
     ax2.legend(loc='upper right')
     ax2.grid(True)
 
-    plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution')
+    plt.suptitle(r'$L^2$ and $H^1$ Errors of $\hat{u}(\hat{x}, \omega)$ to the reference solution')
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
@@ -1598,6 +1598,7 @@ def perturbation_function_with_more_returns(x: np.array, omega: np.array) -> tup
             np.array([0.16, 0.16]) + bound_perturb
 
 def plot_reference_domain():
+    """Plot the reference domain."""
     mesh_resolution = 32
     mesh = create_reference_mesh(mesh_resolution)
     inner_circle_boundary_points = get_inner_circle_boundary_points(mesh)
@@ -1623,6 +1624,7 @@ def plot_reference_domain():
     plt.show()
 
 def plot_perturbed_mesh_sample():
+    """Plot a perturbed mesh sample and the perturbation function."""
 
     mesh_resolution = 16
     mesh = create_reference_mesh(mesh_resolution)
@@ -1684,8 +1686,8 @@ def plot_perturbed_mesh_sample():
     plt.show()
 
 def plot_perturbation_function():
+    """Plot the perturbation function."""
 
-    mesh_resolution = 16
     omega2 = np.array([1.5, 0.05, 0.05])
     # Create points on the circle
     thetas = np.linspace(0, 2 * np.pi, 500)
@@ -1701,6 +1703,7 @@ def plot_perturbation_function():
     plt.figure(figsize=(16, 8))
 
     ax = plt.subplot(1, 2, 1)
+    ax.set_title(r'Reference domain $D_{ref}$', fontsize=30)
     ax.plot([0, 0.32, 0.32, 0, 0], [0, 0, 0.32, 0.32, 0], color='lightgrey', zorder=1)
     plt.scatter(circle_points[:, 0], circle_points[:, 1], label='Reference Circle', s=1, zorder=1)
     plt.scatter(x[0], x[1], label='Original Point', s=200, marker='x', color='cyan', linewidths=3, zorder=2)
@@ -1710,7 +1713,7 @@ def plot_perturbation_function():
     ax.plot([x[0], x_circ[0]], [x[1], x_circ[1]], color='black', label=r'$h_{max} - h$', linestyle=(0, (5, 5)), zorder=1)
     plt.xlabel(r'$\hat{x}_1$ [m]', fontsize=30)
     plt.ylabel(r'$\hat{x}_2$ [m]', fontsize=30)
-    lgnd = ax.legend(loc='upper left', fontsize=20)
+    lgnd = ax.legend(loc='lower left', fontsize=20)
     lgnd.legend_handles[0]._sizes = [30]
     plt.xlim(- 0.02, 0.34)
     plt.ylim(- 0.02, 0.34)
@@ -1721,6 +1724,7 @@ def plot_perturbation_function():
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
 
     ax = plt.subplot(1, 2, 2)
+    ax.set_title(r'Sample domain $D(\omega_2)$', fontsize=30)
     ax.plot([0, 0.32, 0.32, 0, 0], [0, 0, 0.32, 0.32, 0], color='lightgrey', zorder=1)
     plt.scatter(perturbed_circle_points[:, 0], perturbed_circle_points[:, 1], label='Perturbed Circle', s=1, zorder=1)
     plt.scatter(x_pert[0], x_pert[1], label='Perturbed Point', s=200, marker='x', color='cyan', linewidths=3, zorder=2)
@@ -1728,7 +1732,7 @@ def plot_perturbation_function():
     plt.scatter(x_bound[0], x_bound[1], label='Bound Projection', s=200, marker='x', linewidths=3, zorder=2)
     plt.xlabel(r'$x_1$ [m]', fontsize=30)
     plt.ylabel(r'$x_2$ [m]', fontsize=30)
-    lgnd = plt.legend(loc='upper left', fontsize=20)
+    lgnd = plt.legend(loc='lower left', fontsize=20)
     lgnd.legend_handles[0]._sizes = [30]
     plt.xlim(- 0.02, 0.34)
     plt.ylim(- 0.02, 0.34)
@@ -1742,6 +1746,7 @@ def plot_perturbation_function():
     plt.show()
 
 def plot_random_field_e():
+    """Plot the random field E and its perturbed version."""
 
     mesh_resolution = 16
     mesh = create_reference_mesh(mesh_resolution)
@@ -1823,6 +1828,7 @@ def plot_random_field_e():
     plt.show()
 
 def plot_grid_perturbation_for_introduction():
+    """Plot the perturbed grid for the introduction section."""
 
     mesh_resolution = 16
     mesh = create_reference_mesh(mesh_resolution)
@@ -1906,6 +1912,8 @@ def plot_grid_perturbation_for_introduction():
     plt.show()
 
 def plot_solution_sample_without_perturbation():
+    """Plot the solution sample without perturbation."""
+
     mesh_resolution = 16
     randomFieldE = calculate_randomFieldE(mesh_resolution)
     omega1 = sample_omega1(randomFieldE)
@@ -1982,6 +1990,8 @@ def plot_solution_sample_without_perturbation():
     plt.show()
 
 def plot_solution_sample_with_perturbation():
+    """Plot the solution sample with perturbation."""
+
     mesh_resolution = 16
     randomFieldE = calculate_randomFieldE(mesh_resolution)
     omega1 = sample_omega1(randomFieldE)

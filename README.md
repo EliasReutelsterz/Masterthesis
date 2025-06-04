@@ -4,7 +4,7 @@
 
 **Affiliation:** Technical University of Munich, TUM School of Computation, Information and Technology
 
-**Date:** May, 2025
+**Date:** 4. June, 2025
 
 **Supervisor:** Prof. Elisabeth Ullmann
 
@@ -188,7 +188,7 @@ These scripts run in an infinite loop and are always saved after the specified -
 
 ## 7. Data and Output
 
-No input data is required. All output data is stored in the respective mc_data_storage and sobol_data_storage folders of the models and is also stored there when new samples are generated.
+No input data is required. The output data is stored in the respective mc_data_storage and sobol_data_storage folders of the models and is also stored there when new samples are generated. Since the output data for the Sobol estimation and the Monte Carlo analyses are too large for the free Github version (and also the large file storage), all data is only pushed with a size of 100 samples. This means that the code can be executed, but much larger amounts of data are used in the thesis itself. The images used can therefore only be reproduced with the real data.
 
 ## 8. Known Issues & Limitations
 

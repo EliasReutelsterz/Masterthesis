@@ -265,31 +265,27 @@ def poisson_rhs_random_analyse_two_resolutions_from_data_u_hat(resolution_sparse
     plt.show()
 
 
-    # Plot L2 and H1 errors
-    fig_var, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$\text{L}^2$ Error', markersize=10)
-    ax.set_xscale('log')
-    ax.set_xlabel('MC Samples', fontsize=24)
-    ax.set_ylabel(r'$\text{L}^2$ Error', fontsize=24)
-    ax.legend(loc='upper left', fontsize=20)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.yaxis.get_offset_text().set_fontsize(20)
-    ax.tick_params(axis='both', which='major', labelsize=20)
-    ax.grid(True)
-    plt.tight_layout()
-    plt.show()
+    # Plots L2 and H1 errors
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5))
 
-    fig_var, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$\text{H}^1$ Error', markersize=10)
-    ax.set_xscale('log')
-    ax.set_xlabel('MC Samples', fontsize=24)
-    ax.set_ylabel(r'$\text{H}^1$ Error', fontsize=24)
-    ax.legend(loc='upper left', fontsize=20)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.yaxis.get_offset_text().set_fontsize(20)
-    ax.tick_params(axis='both', which='major', labelsize=20)
-    ax.grid(True)
-    plt.tight_layout()
+    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$L^2$ Error')
+    ax1.set_xscale('log')
+    #ax1.set_yscale('log')
+    ax1.set_xlabel('MC Samples')
+    ax1.set_ylabel(r'$L^2$ Error')
+    ax1.legend(loc='upper right')
+    ax1.grid(True)
+
+    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$H^1$ Error')
+    ax2.set_xscale('log')
+    #ax2.set_yscale('log')
+    ax2.set_xlabel('MC Samples')
+    ax2.set_ylabel(r'$H^1$ Error')
+    ax2.legend(loc='upper right')
+    ax2.grid(True)
+
+    plt.suptitle(r'$L^2$ and $H^1$ Errors of $\hat{u}(\hat{x}, \omega)$ to the reference solution')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
 # Sobol
@@ -450,7 +446,7 @@ def poisson_rhs_random_plot_sobols(S_single: np.array, S_total: np.array, mc_sam
         mc_sample_size: The number of Monte Carlo samples.
     """
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(15, 7))
 
     # Set width for each bar
     bar_width = 0.35

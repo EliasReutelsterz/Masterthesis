@@ -593,35 +593,29 @@ def analyse_two_resolutions_from_data_u_hat(resolution_sparse: int, resolution_f
     # plt.suptitle(f'Means and Variance of û(x,y) in point ({P_hat.x()}, {P_hat.y()})')
     # plt.tight_layout(rect=[0, 0, 1, 0.96])
 
+    # Plots L2 and H1 errors
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5))
 
-    # Plot L2 and H1 errors
-    fig_var, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$\text{L}^2$ Error', markersize=10)
-    ax.set_xscale('log')
-    ax.set_xlabel('MC Samples', fontsize=24)
-    ax.set_ylabel(r'$\text{L}^2$ Error', fontsize=24)
-    ax.legend(loc='upper left', fontsize=20)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.yaxis.get_offset_text().set_fontsize(20)
-    ax.tick_params(axis='both', which='major', labelsize=20)
-    ax.grid(True)
-    plt.tight_layout()
+    ax1.plot(mc_sample_sizes, L2_errors, 'bo', marker='x', label=r'$L^2$ Error')
+    ax1.set_xscale('log')
+    #ax1.set_yscale('log')
+    ax1.set_xlabel('MC Samples')
+    ax1.set_ylabel(r'$L^2$ Error')
+    ax1.legend(loc='upper right')
+    ax1.grid(True)
+
+    ax2.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$H^1$ Error')
+    ax2.set_xscale('log')
+    #ax2.set_yscale('log')
+    ax2.set_xlabel('MC Samples')
+    ax2.set_ylabel(r'$H^1$ Error')
+    ax2.legend(loc='upper right')
+    ax2.grid(True)
+
+    plt.suptitle(r'$L^2$ and $H^1$ Errors of $\hat{u}(\hat{x}, \omega)$ to the reference solution')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
-    fig_var, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(mc_sample_sizes, H1_errors, 'bo', marker='x', label=r'$\text{H}^1$ Error', markersize=10)
-    ax.set_xscale('log')
-    ax.set_xlabel('MC Samples', fontsize=24)
-    ax.set_ylabel(r'$\text{H}^1$ Error', fontsize=24)
-    ax.legend(loc='upper left', fontsize=20)
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.yaxis.get_offset_text().set_fontsize(20)
-    ax.tick_params(axis='both', which='major', labelsize=20)
-    ax.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-    # plt.suptitle('L2 and H1 Errors of û(x,y) to reference solution')
 
 def measure_time_one_sample(len_xi: int, kl_res: int, fem_res: int, randomFieldV: RandomFieldV, jacobianV: JacobianV) -> None:
     """Measure the time taken to solve the Poisson equation for a given sample of the random field V."""
@@ -907,7 +901,7 @@ def poisson_plot_sobols(S_single: np.array, S_total: np.array, mc_sample_size: i
         mc_sample_size: The number of Monte Carlo samples.
         title: The title of the plot.
     """
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(15, 7))
 
     # Set width for each bar
     bar_width = 0.35
